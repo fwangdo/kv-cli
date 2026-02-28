@@ -1,0 +1,2724 @@
+% ============================================================
+%  C++ Design Patterns — Building a Key-Value Store CLI
+%  Compile: xelatex book.tex && xelatex book.tex
+% ============================================================
+\documentclass[11pt,a4paper]{book}
+
+% --- Fonts & Korean ---
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{AppleGothic}
+\setmainfont{Palatino}
+\setmonofont{Menlo}[Scale=0.85]
+
+% --- Layout ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Packages ---
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+
+% --- Colors ---
+\definecolor{codebg}{HTML}{F5F5F0}
+\definecolor{codeframe}{HTML}{CCCCCC}
+\definecolor{keyword}{HTML}{0000FF}
+\definecolor{string}{HTML}{A31515}
+\definecolor{comment}{HTML}{008000}
+\definecolor{type}{HTML}{267F99}
+\definecolor{boxblue}{HTML}{1565C0}
+\definecolor{boxgreen}{HTML}{2E7D32}
+\definecolor{boxorange}{HTML}{E65100}
+\definecolor{boxpurple}{HTML}{6A1B9A}
+\definecolor{quizbg}{HTML}{FFF8E1}
+\definecolor{summarybg}{HTML}{E3F2FD}
+
+% --- Code listings ---
+\lstset{
+  basicstyle=\small\ttfamily,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  breakatwhitespace=false,
+  tabsize=4,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  aboveskip=10pt,
+  belowskip=10pt,
+  xleftmargin=15pt,
+  framexleftmargin=15pt,
+  columns=flexible,
+  keepspaces=true,
+  literate={→}{{\ensuremath{\rightarrow}}}1,
+}
+
+\lstdefinestyle{cpp}{
+  language=C++,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  morekeywords={override,final,nullptr,constexpr,noexcept,auto,
+                 decltype,static_assert,unique_ptr,shared_ptr,
+                 make_unique,make_shared,optional,string_view},
+  emph={std,map,string,vector,ifstream,ofstream,istringstream,
+        cout,cerr,endl,cin,getline,optional,nullopt,unique_ptr},
+  emphstyle=\color{type},
+}
+
+\lstdefinestyle{cmake}{
+  language={},
+  keywordstyle=\color{keyword}\bfseries,
+  morekeywords={cmake_minimum_required,project,set,add_executable,
+                target_compile_features,VERSION,LANGUAGES},
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  morecomment=[l]{\#},
+}
+
+\lstdefinestyle{shell}{
+  language=bash,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+}
+
+% --- tcolorbox styles ---
+\newtcolorbox{summarybox}[1][]{
+  colback=summarybg,
+  colframe=boxblue,
+  fonttitle=\bfseries,
+  title={배운 것 정리 (What You Learned)},
+  breakable,
+  #1
+}
+
+\newtcolorbox{quizbox}[1][]{
+  colback=quizbg,
+  colframe=boxorange,
+  fonttitle=\bfseries,
+  title={퀴즈 (Quiz)},
+  breakable,
+  #1
+}
+
+\newtcolorbox{conceptbox}[1][]{
+  colback=white,
+  colframe=boxgreen,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newtcolorbox{warningbox}[1][]{
+  colback=white,
+  colframe=boxorange,
+  fonttitle=\bfseries,
+  title={주의 (Warning)},
+  breakable,
+  #1
+}
+
+\newtcolorbox{pythonbox}[1][]{
+  colback=white,
+  colframe=boxpurple,
+  fonttitle=\bfseries,
+  title={Python과 비교},
+  breakable,
+  #1
+}
+
+% --- Header/Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\leftmark}
+\fancyhead[RO]{\rightmark}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Chapter title format ---
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries}
+  {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+% --- Hyperref ---
+\hypersetup{
+  colorlinks=true,
+  linkcolor=boxblue,
+  urlcolor=boxblue,
+  pdftitle={C++ Design Patterns: Building a Key-Value Store CLI},
+  pdfauthor={},
+}
+
+% --- Convenience macros ---
+\newcommand{\cpp}{\texttt{C++}}
+\newcommand{\file}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% ============================================================
+\begin{document}
+
+% --- Title Page ---
+\begin{titlepage}
+\centering
+\vspace*{3cm}
+{\Huge\bfseries C++ Design Patterns\par}
+\vspace{0.5cm}
+{\LARGE Building a Key-Value Store CLI\par}
+\vspace{1.5cm}
+{\Large\itshape Python 개발자를 위한 Modern C++ 패턴 입문\par}
+\vspace{3cm}
+{\large mini-kvstore 프로젝트를 만들면서 배우는\\
+RAII, Command, Factory, Strategy 패턴\par}
+\vfill
+{\large 2026\par}
+\end{titlepage}
+
+% --- Table of Contents ---
+\tableofcontents
+
+% ============================================================
+\chapter{프로젝트 설정과 빌드 시스템}
+\label{ch:setup}
+% ============================================================
+
+이 장에서는 C++ 프로젝트의 기본 구조를 만들고, CMake로 빌드하는 방법을 배웁니다.
+
+\section{왜 빌드 시스템이 필요한가?}
+
+Python에서는 \code{python main.py}로 바로 실행할 수 있습니다. C++에서는 \textbf{컴파일}이라는 단계가 필요합니다. 소스 코드(\file{.cpp})를 기계어로 바꾸는 과정입니다.
+
+\begin{pythonbox}
+\textbf{Python}: \code{python main.py} → 인터프리터가 바로 실행\\
+\textbf{C++}: \code{g++ main.cpp -o main \&\& ./main} → 컴파일 후 실행\\[6pt]
+파일이 여러 개면? → 빌드 시스템(CMake)이 컴파일 순서를 관리해줍니다.
+\end{pythonbox}
+
+\section{CMake 기초}
+
+CMake는 C++ 빌드를 관리하는 도구입니다. \file{CMakeLists.txt}라는 설정 파일에 ``어떤 파일을 컴파일해서 어떤 프로그램을 만들지''를 적습니다.
+
+\begin{conceptbox}[title={CMake의 핵심 세 줄}]
+\begin{enumerate}
+\item \code{cmake\_minimum\_required} — 최소 CMake 버전
+\item \code{project} — 프로젝트 이름
+\item \code{add\_executable} — 어떤 소스 파일로 어떤 실행 파일을 만들지
+\end{enumerate}
+\end{conceptbox}
+
+\section{프로젝트 디렉토리 구조}
+
+\begin{lstlisting}[style=shell,numbers=none]
+mini-kvstore/
+  CMakeLists.txt       # 빌드 설정
+  src/
+    main.cpp           # 프로그램 진입점
+    store.h            # KVStore 선언 (이후 장에서)
+    store.cpp           # KVStore 구현 (이후 장에서)
+    command.h          # Command 인터페이스 (이후 장에서)
+    command.cpp        # Command 구현 (이후 장에서)
+    exporter.h         # Exporter 인터페이스 (이후 장에서)
+    exporter.cpp       # Exporter 구현 (이후 장에서)
+\end{lstlisting}
+
+\section{Include Guard}
+
+C++에서 헤더 파일(\file{.h})은 여러 곳에서 \code{\#include} 될 수 있습니다. 같은 파일이 두 번 포함되면 ``이미 정의됨'' 에러가 납니다. 이를 방지하는 것이 \textbf{include guard}입니다.
+
+\begin{lstlisting}[style=cpp]
+#ifndef STORE_H    // 아직 정의 안 됐으면
+#define STORE_H    // 정의하고 아래 내용 포함
+
+// ... 헤더 내용 ...
+
+#endif             // 끝
+\end{lstlisting}
+
+\begin{pythonbox}
+Python은 모듈 시스템이 자동으로 중복 import를 막아줍니다.\\
+C++은 텍스트 기반 \code{\#include}이므로 직접 막아야 합니다.
+\end{pythonbox}
+
+\section{코드: CMakeLists.txt}
+
+\begin{lstlisting}[style=cmake,title={\file{CMakeLists.txt}}]
+cmake_minimum_required(VERSION 3.16)
+project(mini-kvstore LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(kvstore
+    src/main.cpp
+)
+\end{lstlisting}
+
+\textbf{설명:}
+\begin{itemize}[nosep]
+\item \code{VERSION 3.16} — 대부분의 시스템에 있는 안정 버전
+\item \code{LANGUAGES CXX} — C++ 프로젝트임을 명시
+\item \code{CMAKE\_CXX\_STANDARD 17} — C++17 사용 (optional, map, string\_view 등)
+\item \code{add\_executable} — \file{src/main.cpp}를 컴파일해서 \code{kvstore} 실행 파일 생성
+\end{itemize}
+
+\section{코드: main.cpp (Hello World)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/main.cpp}}]
+#include <iostream>
+
+int main() {
+    std::cout << "mini-kvstore v0.1" << std::endl;
+    return 0;
+}
+\end{lstlisting}
+
+\section{빌드 및 실행}
+
+\begin{lstlisting}[style=shell,numbers=none]
+mkdir build && cd build
+cmake ..
+make
+./kvstore
+# 출력: mini-kvstore v0.1
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item C++은 컴파일 → 링크 → 실행의 과정이 필요하다
+\item CMake는 이 과정을 자동화하는 빌드 시스템이다
+\item \code{cmake\_minimum\_required}, \code{project}, \code{add\_executable}이 핵심 세 명령어다
+\item Include guard는 헤더 파일의 중복 포함을 방지한다
+\item \code{std::cout}으로 표준 출력에 텍스트를 쓴다
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+아래 CMakeLists.txt의 빈칸을 채우세요:
+
+\begin{lstlisting}[style=cmake,numbers=none]
+cmake_minimum_required(_______ 3.16)
+_______(mini-kvstore LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD ___)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(kvstore
+    _____________
+)
+\end{lstlisting}
+
+\textbf{정답}: VERSION, project, 17, src/main.cpp
+\end{quizbox}
+
+% ============================================================
+\chapter{RAII와 값 의미론 — KVStore 클래스}
+\label{ch:raii}
+% ============================================================
+
+이 장에서는 C++의 가장 핵심적인 개념인 \textbf{RAII}와 \textbf{값 의미론}을 배우고, 이를 활용해 인메모리 Key-Value Store 클래스를 만듭니다.
+
+\section{RAII (Resource Acquisition Is Initialization)}
+
+RAII는 ``자원 획득은 초기화다''라는 뜻입니다. C++에서 가장 중요한 패턴 중 하나입니다.
+
+\begin{conceptbox}[title={RAII 핵심 원리}]
+\begin{enumerate}
+\item 생성자에서 자원을 획득한다 (파일 열기, 메모리 할당 등)
+\item 소멸자에서 자원을 해제한다 (파일 닫기, 메모리 반환 등)
+\item 객체가 스코프를 벗어나면 \textbf{자동으로} 소멸자가 호출된다
+\end{enumerate}
+\end{conceptbox}
+
+\begin{pythonbox}
+Python은 가비지 컬렉터(GC)가 메모리를 관리합니다.\\
+C++은 GC가 없습니다. 대신 RAII로 자원을 \textbf{결정론적으로} 관리합니다.\\[6pt]
+Python의 \code{with open('f') as f:}도 RAII와 비슷한 개념입니다.\\
+C++은 \textbf{모든 객체}가 기본적으로 이렇게 동작합니다.
+\end{pythonbox}
+
+\section{스택 vs 힙}
+
+\begin{lstlisting}[style=cpp]
+void example() {
+    int x = 42;              // 스택: 함수 끝나면 자동 제거
+    std::string s = "hello"; // 스택: 문자열 데이터는 내부적으로 힙에
+}                             // x와 s 모두 여기서 자동 소멸
+\end{lstlisting}
+
+\begin{conceptbox}[title={스택 vs 힙}]
+\textbf{스택(Stack)}: 함수 안에서 선언한 변수. 함수 끝나면 자동 제거. 빠르다.\\
+\textbf{힙(Heap)}: \code{new}로 수동 할당. \code{delete}로 수동 해제. 느리다.\\[6pt]
+원칙: 가능하면 스택을 쓴다. 힙이 필요하면 \code{unique\_ptr}을 쓴다 (5장에서).
+\end{conceptbox}
+
+\section{std::map — 연관 컨테이너}
+
+\code{std::map<Key, Value>}는 키로 값을 찾는 자료구조입니다. Python의 \code{dict}와 같은 역할입니다.
+
+\begin{lstlisting}[style=cpp]
+#include <map>
+#include <string>
+
+std::map<std::string, std::string> data;
+data["name"] = "Alice";        // 삽입
+std::string v = data["name"];  // 조회: "Alice"
+data.erase("name");            // 삭제
+data.count("name");            // 존재 확인: 0 또는 1
+data.size();                   // 개수
+\end{lstlisting}
+
+\section{const 참조 (const T\&)}
+
+C++에서 함수 인자를 넘길 때, 기본적으로 \textbf{복사}가 일어납니다. 큰 객체를 복사하면 느립니다. \code{const T\&}는 ``복사 없이 읽기만 하겠다''는 뜻입니다.
+
+\begin{lstlisting}[style=cpp]
+// 나쁨: string이 복사됨
+void bad(std::string key) { /* ... */ }
+
+// 좋음: 복사 없이 원본을 읽기만 함
+void good(const std::string& key) { /* ... */ }
+\end{lstlisting}
+
+\begin{pythonbox}
+Python은 모든 것이 참조(reference)입니다. 복사가 기본이 아닙니다.\\
+C++은 값(value)이 기본입니다. 참조를 원하면 \code{\&}를 명시해야 합니다.
+\end{pythonbox}
+
+\section{explicit 키워드}
+
+\code{explicit}은 컴파일러의 \textbf{암묵적 타입 변환}을 막습니다. 생성자가 인자 1개일 때 반드시 붙여야 합니다.
+
+\begin{lstlisting}[style=cpp]
+class KVStore {
+public:
+    explicit KVStore(const std::string& filepath);
+    // explicit 없으면: KVStore s = "data.txt"; 가 컴파일됨 (위험!)
+    // explicit 있으면: KVStore s("data.txt"); 만 허용
+};
+\end{lstlisting}
+
+\section{코드: store.h}
+
+\begin{lstlisting}[style=cpp,title={\file{src/store.h}}]
+#ifndef STORE_H
+#define STORE_H
+
+#include <map>
+#include <string>
+#include <vector>
+
+class KVStore {
+public:
+    explicit KVStore(const std::string& filepath);
+
+    void set(const std::string& key, const std::string& value);
+    std::string get(const std::string& key) const;
+    bool remove(const std::string& key);
+    std::vector<std::pair<std::string, std::string>> list() const;
+    std::size_t count() const;
+
+private:
+    std::string filepath_;
+    std::map<std::string, std::string> data_;
+};
+
+#endif
+\end{lstlisting}
+
+\textbf{설명:}
+\begin{itemize}[nosep]
+\item \code{explicit KVStore(const std::string\& filepath)} — 파일 경로를 받는 생성자. 암묵적 변환 방지.
+\item \code{const} 멤버 함수 (\code{get}, \code{list}, \code{count}) — 객체 상태를 변경하지 않음을 보장
+\item \code{filepath\_} — 멤버 변수에 \code{\_} 접미사는 C++ 관례
+\item \code{std::vector<std::pair<...>>} — key-value 쌍의 목록을 반환
+\end{itemize}
+
+\section{코드: store.cpp (인메모리 버전)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/store.cpp}}]
+#include "store.h"
+#include <stdexcept>
+
+KVStore::KVStore(const std::string& filepath)
+    : filepath_(filepath) {}
+
+void KVStore::set(const std::string& key, const std::string& value) {
+    data_[key] = value;
+}
+
+std::string KVStore::get(const std::string& key) const {
+    auto it = data_.find(key);
+    if (it == data_.end()) {
+        throw std::runtime_error("Key not found: " + key);
+    }
+    return it->second;
+}
+
+bool KVStore::remove(const std::string& key) {
+    return data_.erase(key) > 0;
+}
+
+std::vector<std::pair<std::string, std::string>> KVStore::list() const {
+    return std::vector<std::pair<std::string, std::string>>(
+        data_.begin(), data_.end());
+}
+
+std::size_t KVStore::count() const {
+    return data_.size();
+}
+\end{lstlisting}
+
+\textbf{설명:}
+\begin{itemize}[nosep]
+\item \code{: filepath\_(filepath)} — \textbf{멤버 초기화 리스트}. 생성자 본문 전에 멤버를 초기화.
+\item \code{data\_.find(key)} — \code{map}에서 키를 검색. 없으면 \code{end()} 반환.
+\item \code{it->second} — iterator가 가리키는 pair의 value (first는 key)
+\item \code{data\_.erase(key)} — 삭제한 개수 반환 (0 또는 1)
+\end{itemize}
+
+\section{CMakeLists.txt 업데이트}
+
+\begin{lstlisting}[style=cmake,title={\file{CMakeLists.txt} (업데이트)}]
+cmake_minimum_required(VERSION 3.16)
+project(mini-kvstore LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(kvstore
+    src/main.cpp
+    src/store.cpp
+)
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item RAII = 생성자에서 자원 획득, 소멸자에서 자원 해제, 스코프 벗어나면 자동 해제
+\item 스택 변수는 함수 끝나면 자동 소멸. 가능하면 스택을 쓴다
+\item \code{std::map}은 Python의 dict와 같다
+\item \code{const T\&}는 복사 없이 읽기만 하겠다는 뜻
+\item \code{explicit}은 암묵적 타입 변환을 막는다
+\item 멤버 초기화 리스트(\code{: member\_(arg)})는 생성자에서 멤버를 초기화하는 방법
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+아래 \file{store.h}의 빈칸을 채우세요:
+
+\begin{lstlisting}[style=cpp,numbers=none]
+#ifndef STORE_H
+#define STORE_H
+
+#include <___>     // map 헤더
+#include <string>
+
+class KVStore {
+public:
+    ________ KVStore(const std::string& filepath); // 암묵적 변환 방지
+
+    void set(const std::string& key, const std::string& value);
+    std::string get(const std::string& key) _____;  // 상태 불변 보장
+
+private:
+    std::string filepath_;
+    std::___<std::string, std::string> data_;
+};
+
+#endif
+\end{lstlisting}
+
+\textbf{정답}: map, explicit, const, map
+\end{quizbox}
+
+% ============================================================
+\chapter{파일 I/O와 std::optional — 영속성}
+\label{ch:fileio}
+% ============================================================
+
+이 장에서는 파일 읽기/쓰기로 데이터를 저장하고, \code{std::optional}로 ``값이 없을 수 있음''을 표현합니다.
+
+\section{파일 스트림도 RAII}
+
+C++의 파일 스트림(\code{std::ifstream}, \code{std::ofstream})은 RAII 패턴을 따릅니다:
+
+\begin{lstlisting}[style=cpp]
+#include <fstream>
+
+void write_example() {
+    std::ofstream out("data.txt");  // 생성자: 파일 열기
+    out << "hello" << std::endl;
+}                                    // 소멸자: 파일 자동 닫기
+
+void read_example() {
+    std::ifstream in("data.txt");   // 생성자: 파일 열기
+    std::string line;
+    std::getline(in, line);         // 한 줄 읽기
+}                                    // 소멸자: 파일 자동 닫기
+\end{lstlisting}
+
+\begin{pythonbox}
+Python: \code{with open('f') as f:} → 블록 끝나면 닫힘\\
+C++: 변수 스코프 끝나면 자동으로 닫힘 (with문이 필요 없음)
+\end{pythonbox}
+
+\section{std::optional}
+
+\code{std::optional<T>}는 ``값이 있거나 없거나''를 표현합니다. Python의 \code{Optional[T]} 타입 힌트와 비슷하지만, 실제로 런타임에 값이 있는지 없는지를 확인합니다.
+
+\begin{lstlisting}[style=cpp]
+#include <optional>
+
+std::optional<std::string> find(const std::string& key) {
+    if (/* found */) return value;   // 값이 있을 때
+    return std::nullopt;             // 값이 없을 때
+}
+
+// 사용법:
+auto result = find("name");
+if (result.has_value()) {
+    std::cout << *result << std::endl;  // *로 값 꺼내기
+}
+// 또는:
+if (result) {             // bool처럼 사용 가능
+    std::cout << result.value() << std::endl;
+}
+\end{lstlisting}
+
+\begin{warningbox}
+\code{std::optional}에서 값이 없는데 \code{*result}나 \code{result.value()}를 호출하면 \textbf{undefined behavior} 또는 예외가 발생합니다. 반드시 먼저 확인하세요!
+\end{warningbox}
+
+\section{파일 형식}
+
+간단한 텍스트 형식을 사용합니다. 한 줄에 하나의 key-value 쌍을 \code{TAB}으로 구분합니다:
+
+\begin{lstlisting}[style=shell,numbers=none]
+name	Alice
+age	30
+city	Seoul
+\end{lstlisting}
+
+TAB 구분을 선택한 이유: 키와 값에 공백이 들어갈 수 있지만, TAB은 덜 일반적이라 구분자로 적합합니다.
+
+\section{코드: store.h (업데이트)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/store.h} (업데이트)}]
+#ifndef STORE_H
+#define STORE_H
+
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
+
+class KVStore {
+public:
+    explicit KVStore(const std::string& filepath);
+
+    void set(const std::string& key, const std::string& value);
+    std::optional<std::string> get(const std::string& key) const;
+    bool remove(const std::string& key);
+    std::vector<std::pair<std::string, std::string>> list() const;
+    std::size_t count() const;
+
+    void save() const;
+    void load();
+
+private:
+    std::string filepath_;
+    std::map<std::string, std::string> data_;
+};
+
+#endif
+\end{lstlisting}
+
+\textbf{변경점:}
+\begin{itemize}[nosep]
+\item \code{get()} 반환 타입이 \code{std::string} → \code{std::optional<std::string>}로 변경
+\item \code{save()}, \code{load()} 메서드 추가
+\end{itemize}
+
+\section{코드: store.cpp (파일 I/O 추가)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/store.cpp} (업데이트)}]
+#include "store.h"
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+
+KVStore::KVStore(const std::string& filepath)
+    : filepath_(filepath) {}
+
+void KVStore::set(const std::string& key, const std::string& value) {
+    data_[key] = value;
+}
+
+std::optional<std::string> KVStore::get(const std::string& key) const {
+    auto it = data_.find(key);
+    if (it == data_.end()) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+bool KVStore::remove(const std::string& key) {
+    return data_.erase(key) > 0;
+}
+
+std::vector<std::pair<std::string, std::string>> KVStore::list() const {
+    return std::vector<std::pair<std::string, std::string>>(
+        data_.begin(), data_.end());
+}
+
+std::size_t KVStore::count() const {
+    return data_.size();
+}
+
+void KVStore::save() const {
+    std::ofstream out(filepath_);
+    if (!out) {
+        throw std::runtime_error("Cannot open file: " + filepath_);
+    }
+    for (const auto& [key, value] : data_) {
+        out << key << '\t' << value << '\n';
+    }
+}
+
+void KVStore::load() {
+    std::ifstream in(filepath_);
+    if (!in) {
+        return;  // 파일 없으면 빈 상태로 시작
+    }
+    data_.clear();
+    std::string line;
+    while (std::getline(in, line)) {
+        auto tab = line.find('\t');
+        if (tab != std::string::npos) {
+            std::string key = line.substr(0, tab);
+            std::string value = line.substr(tab + 1);
+            data_[key] = value;
+        }
+    }
+}
+\end{lstlisting}
+
+\textbf{주요 패턴:}
+\begin{itemize}[nosep]
+\item \code{const auto\& [key, value]} — \textbf{구조적 바인딩}(C++17). pair를 분해하여 이름 부여.
+\item \code{std::string::npos} — \code{find()}가 실패했을 때 반환하는 특수값
+\item \code{line.substr(0, tab)} — 0부터 tab까지의 부분 문자열
+\item \code{if (!out)} — 스트림의 bool 변환으로 파일 열기 실패 확인
+\end{itemize}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item \code{ifstream}/\code{ofstream}은 RAII — 스코프 벗어나면 자동으로 파일 닫힘
+\item \code{std::optional<T>}는 ``값이 없을 수 있음''을 타입으로 표현
+\item \code{std::nullopt}은 ``값 없음''을 나타내는 리터럴
+\item 구조적 바인딩(\code{auto\& [k, v]})으로 pair를 분해할 수 있다
+\item \code{string::find()}는 실패 시 \code{npos} 반환
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+\code{save()} 함수의 빈칸을 채우세요:
+
+\begin{lstlisting}[style=cpp,numbers=none]
+void KVStore::save() const {
+    std::_______ out(filepath_);   // 쓰기용 파일 스트림
+    if (!out) {
+        throw std::runtime_error("Cannot open file: " + filepath_);
+    }
+    for (const auto& [key, value] : _____) {
+        out << key << '___' << value << '\n';  // 구분자
+    }
+}   // 여기서 파일이 자동으로 닫히는 이유: _____
+\end{lstlisting}
+
+\textbf{정답}: ofstream, data\_, \textbackslash t, RAII (소멸자가 호출되어 파일을 닫음)
+\end{quizbox}
+
+% ============================================================
+\chapter{가상 인터페이스와 추상 클래스 — Command 인터페이스}
+\label{ch:interface}
+% ============================================================
+
+이 장에서는 C++의 \textbf{가상 함수(virtual function)}와 \textbf{추상 클래스(abstract class)}를 배우고, Command 패턴의 기반이 되는 인터페이스를 만듭니다.
+
+\section{다형성 (Polymorphism)}
+
+\textbf{다형성}이란 같은 인터페이스로 다른 동작을 실행하는 것입니다.
+
+\begin{pythonbox}
+Python에서는 duck typing입니다:\\
+\code{for cmd in commands: cmd.execute()} → 각 cmd가 다른 클래스여도 동작\\[6pt]
+C++에서는 \textbf{명시적 인터페이스}가 필요합니다:\\
+기반 클래스(base class)에 \code{virtual} 함수를 선언하고, 파생 클래스(derived class)에서 \code{override}합니다.
+\end{pythonbox}
+
+\section{순수 가상 함수 (Pure Virtual Function)}
+
+\code{= 0}을 붙이면 ``구현이 없다''는 뜻입니다. 이런 함수가 하나라도 있으면 그 클래스는 \textbf{추상 클래스}가 됩니다. 추상 클래스의 인스턴스는 만들 수 없습니다.
+
+\begin{lstlisting}[style=cpp]
+class Shape {
+public:
+    virtual double area() const = 0;   // 순수 가상 함수
+    virtual ~Shape() = default;        // 가상 소멸자
+};
+
+class Circle : public Shape {
+public:
+    explicit Circle(double r) : radius_(r) {}
+    double area() const override {     // override로 명시
+        return 3.14159 * radius_ * radius_;
+    }
+private:
+    double radius_;
+};
+\end{lstlisting}
+
+\section{가상 소멸자 (Virtual Destructor)}
+
+기반 클래스 포인터로 파생 객체를 삭제할 때, 가상 소멸자가 없으면 파생 클래스의 소멸자가 호출되지 않습니다. 이것은 \textbf{메모리 누수}의 원인이 됩니다.
+
+\begin{warningbox}
+\textbf{규칙}: 가상 함수가 하나라도 있으면, 소멸자도 반드시 \code{virtual}로 선언하세요.\\
+\code{virtual \~{}ClassName() = default;} — 대부분의 경우 이것으로 충분합니다.
+\end{warningbox}
+
+\section{override 키워드}
+
+\code{override}는 ``이 함수가 기반 클래스의 가상 함수를 재정의한다''는 것을 컴파일러에게 알립니다. 기반 클래스에 해당 함수가 없으면 컴파일 에러가 납니다.
+
+\begin{lstlisting}[style=cpp]
+class Base {
+public:
+    virtual void execute() = 0;
+};
+
+class Derived : public Base {
+public:
+    void execute() override { /* ... */ }  // OK
+    void exeucte() override { /* ... */ }  // 컴파일 에러! 오타 발견!
+};
+\end{lstlisting}
+
+\section{코드: command.h (Set/Get 커맨드)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.h}}]
+#ifndef COMMAND_H
+#define COMMAND_H
+
+#include "store.h"
+#include <string>
+#include <vector>
+
+class Command {
+public:
+    virtual ~Command() = default;
+    virtual void execute(KVStore& store) = 0;
+};
+
+class SetCommand : public Command {
+public:
+    SetCommand(const std::string& key, const std::string& value);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+    std::string value_;
+};
+
+class GetCommand : public Command {
+public:
+    explicit GetCommand(const std::string& key);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+};
+
+#endif
+\end{lstlisting}
+
+\textbf{설명:}
+\begin{itemize}[nosep]
+\item \code{Command}는 추상 클래스 — \code{execute()}가 순수 가상 함수
+\item \code{virtual \~{}Command() = default} — 가상 소멸자
+\item \code{execute(KVStore\& store)} — KVStore 참조를 받아서 동작 수행
+\item \code{SetCommand}, \code{GetCommand}가 \code{Command}를 상속하고 \code{override}
+\end{itemize}
+
+\section{코드: command.cpp (Set/Get 구현)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.cpp}}]
+#include "command.h"
+#include <iostream>
+
+// --- SetCommand ---
+SetCommand::SetCommand(const std::string& key, const std::string& value)
+    : key_(key), value_(value) {}
+
+void SetCommand::execute(KVStore& store) {
+    store.set(key_, value_);
+    store.save();
+    std::cout << "OK" << std::endl;
+}
+
+// --- GetCommand ---
+GetCommand::GetCommand(const std::string& key)
+    : key_(key) {}
+
+void GetCommand::execute(KVStore& store) {
+    auto result = store.get(key_);
+    if (result) {
+        std::cout << *result << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_ << std::endl;
+    }
+}
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item \code{virtual ... = 0}은 순수 가상 함수 — 파생 클래스가 반드시 구현해야 함
+\item 순수 가상 함수가 하나라도 있으면 추상 클래스 — 인스턴스 생성 불가
+\item \code{override}는 재정의를 명시하여 오타를 컴파일 타임에 잡아줌
+\item 가상 함수가 있으면 반드시 가상 소멸자를 선언
+\item 인터페이스(추상 클래스)를 통해 다형성을 구현
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+아래 Command 인터페이스의 빈칸을 채우세요:
+
+\begin{lstlisting}[style=cpp,numbers=none]
+class Command {
+public:
+    _______ ~Command() = default;       // 가상 소멸자
+    _______ void execute(KVStore& store) ___; // 순수 가상 함수
+};
+
+class GetCommand : ______ Command {     // 상속
+public:
+    explicit GetCommand(const std::string& key);
+    void execute(KVStore& store) ________; // 재정의 명시
+};
+\end{lstlisting}
+
+\textbf{정답}: virtual, virtual, = 0, public, override
+\end{quizbox}
+
+% ============================================================
+\chapter{Command 패턴 — 나머지 커맨드 구현}
+\label{ch:command}
+% ============================================================
+
+이 장에서는 \textbf{Command 패턴}의 이론을 배우고, 나머지 커맨드(Delete, List, Count)를 구현합니다.
+
+\section{Command 패턴이란?}
+
+\begin{conceptbox}[title={Command 패턴}]
+\textbf{핵심}: 요청(동작)을 \textbf{객체}로 캡슐화한다.\\[6pt]
+왜?
+\begin{itemize}[nosep]
+\item 요청을 큐에 넣거나, 로그로 남기거나, 취소(undo)할 수 있다
+\item 요청을 보내는 코드와 실행하는 코드를 분리한다
+\item 새 명령을 추가할 때 기존 코드를 수정하지 않는다 (Open/Closed Principle)
+\end{itemize}
+\end{conceptbox}
+
+\begin{pythonbox}
+Python에서는 함수가 일급 객체이므로 함수 자체를 넘기면 됩니다:\\
+\code{commands = \{"set": do\_set, "get": do\_get\}}\\[6pt]
+C++에서도 함수 포인터나 lambda를 쓸 수 있지만, Command 패턴은 \textbf{상태(인자)를 함께 캡슐화}합니다. \code{SetCommand}는 key와 value를 멤버로 저장합니다.
+\end{pythonbox}
+
+\section{우리 프로젝트에서의 Command 패턴}
+
+\begin{lstlisting}[style=shell,numbers=none]
+./kvstore set name Alice   ->  SetCommand("name", "Alice").execute(store)
+./kvstore get name         ->  GetCommand("name").execute(store)
+./kvstore delete name      ->  DeleteCommand("name").execute(store)
+./kvstore list             ->  ListCommand().execute(store)
+./kvstore count            ->  CountCommand().execute(store)
+\end{lstlisting}
+
+CLI 인자를 파싱해서 적절한 Command 객체를 만들고, \code{execute()}를 호출합니다. 이 ``적절한 Command 객체를 만드는'' 부분은 다음 장(Factory 패턴)에서 다룹니다.
+
+\section{코드: command.h (전체)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.h} (전체)}]
+#ifndef COMMAND_H
+#define COMMAND_H
+
+#include "store.h"
+#include <string>
+
+class Command {
+public:
+    virtual ~Command() = default;
+    virtual void execute(KVStore& store) = 0;
+};
+
+class SetCommand : public Command {
+public:
+    SetCommand(const std::string& key, const std::string& value);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+    std::string value_;
+};
+
+class GetCommand : public Command {
+public:
+    explicit GetCommand(const std::string& key);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+};
+
+class DeleteCommand : public Command {
+public:
+    explicit DeleteCommand(const std::string& key);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+};
+
+class ListCommand : public Command {
+public:
+    void execute(KVStore& store) override;
+};
+
+class CountCommand : public Command {
+public:
+    void execute(KVStore& store) override;
+};
+
+#endif
+\end{lstlisting}
+
+\section{코드: command.cpp (전체)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.cpp} (전체)}]
+#include "command.h"
+#include <iostream>
+
+// --- SetCommand ---
+SetCommand::SetCommand(const std::string& key, const std::string& value)
+    : key_(key), value_(value) {}
+
+void SetCommand::execute(KVStore& store) {
+    store.set(key_, value_);
+    store.save();
+    std::cout << "OK" << std::endl;
+}
+
+// --- GetCommand ---
+GetCommand::GetCommand(const std::string& key)
+    : key_(key) {}
+
+void GetCommand::execute(KVStore& store) {
+    auto result = store.get(key_);
+    if (result) {
+        std::cout << *result << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_ << std::endl;
+    }
+}
+
+// --- DeleteCommand ---
+DeleteCommand::DeleteCommand(const std::string& key)
+    : key_(key) {}
+
+void DeleteCommand::execute(KVStore& store) {
+    if (store.remove(key_)) {
+        store.save();
+        std::cout << "OK" << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_ << std::endl;
+    }
+}
+
+// --- ListCommand ---
+void ListCommand::execute(KVStore& store) {
+    auto entries = store.list();
+    if (entries.empty()) {
+        std::cout << "(empty)" << std::endl;
+        return;
+    }
+    for (const auto& [key, value] : entries) {
+        std::cout << key << "\t" << value << std::endl;
+    }
+}
+
+// --- CountCommand ---
+void CountCommand::execute(KVStore& store) {
+    std::cout << store.count() << std::endl;
+}
+\end{lstlisting}
+
+\section{CMakeLists.txt 업데이트}
+
+\begin{lstlisting}[style=cmake,title={\file{CMakeLists.txt} (업데이트)}]
+cmake_minimum_required(VERSION 3.16)
+project(mini-kvstore LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(kvstore
+    src/main.cpp
+    src/store.cpp
+    src/command.cpp
+)
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item Command 패턴 = 요청을 객체로 캡슐화
+\item 각 Command 클래스는 실행에 필요한 인자를 멤버로 저장
+\item \code{execute(KVStore\& store)}가 실제 동작을 수행
+\item 새 명령 추가 시 기존 코드를 수정하지 않아도 된다 (OCP)
+\item \code{ListCommand}, \code{CountCommand}는 인자가 필요 없으므로 멤버가 없다
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+DeleteCommand를 직접 구현하세요:
+
+\begin{lstlisting}[style=cpp,numbers=none]
+class DeleteCommand : public Command {
+public:
+    ________ DeleteCommand(const std::string& key);
+    void execute(KVStore& store) ________;
+private:
+    std::string ____;
+};
+
+// 구현:
+DeleteCommand::DeleteCommand(const std::string& key)
+    : ________(key) {}
+
+void DeleteCommand::execute(KVStore& store) {
+    if (store.______(key_)) {
+        store.save();
+        std::cout << "OK" << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_
+                  << std::endl;
+    }
+}
+\end{lstlisting}
+
+\textbf{정답}: explicit, override, key\_, key\_(key), remove
+\end{quizbox}
+
+% ============================================================
+\chapter{Factory 패턴과 unique\_ptr — CLI 파싱}
+\label{ch:factory}
+% ============================================================
+
+이 장에서는 \textbf{Factory 패턴}과 \code{std::unique\_ptr}을 배우고, CLI 인자를 파싱하여 적절한 Command 객체를 생성하는 코드를 만듭니다.
+
+\section{Factory 패턴이란?}
+
+\begin{conceptbox}[title={Factory 패턴}]
+\textbf{핵심}: 객체 생성 로직을 별도의 함수(또는 클래스)로 분리한다.\\[6pt]
+왜?
+\begin{itemize}[nosep]
+\item 생성 로직이 복잡할 때 (조건에 따라 다른 타입 생성)
+\item 호출자가 구체적인 타입을 몰라도 되게 할 때
+\item 객체 생성 방식을 나중에 바꿀 수 있게 할 때
+\end{itemize}
+\end{conceptbox}
+
+\section{std::unique\_ptr — 소유권}
+
+\code{std::unique\_ptr<T>}는 ``이 포인터의 주인은 나 하나뿐''이라는 뜻입니다.
+
+\begin{lstlisting}[style=cpp]
+#include <memory>
+
+// 생성: make_unique
+auto ptr = std::make_unique<Circle>(5.0);
+
+// 사용: 일반 포인터처럼
+ptr->area();
+
+// 소유권 이전: std::move
+auto ptr2 = std::move(ptr);  // ptr은 이제 nullptr
+
+// 소멸: 스코프 벗어나면 자동 delete
+\end{lstlisting}
+
+\begin{pythonbox}
+Python에서는 모든 변수가 참조이고, GC가 메모리를 관리합니다.\\
+C++에서 \code{unique\_ptr}은 GC 없이도 메모리 누수를 방지합니다.\\
+소유권이 명확하므로 ``누가 이 객체를 지울 책임이 있는가?''가 타입으로 드러납니다.
+\end{pythonbox}
+
+\begin{warningbox}
+\code{unique\_ptr}은 복사할 수 없습니다. 소유권은 하나뿐이니까요.\\
+소유권을 넘기려면 반드시 \code{std::move()}를 사용해야 합니다.
+\end{warningbox}
+
+\section{std::move — 소유권 이전}
+
+\code{std::move(x)}는 ``x의 자원을 가져가도 좋다''는 의미입니다. 이동 후 원래 변수는 비어있는(valid but unspecified) 상태가 됩니다.
+
+\begin{lstlisting}[style=cpp]
+auto cmd = std::make_unique<SetCommand>("k", "v");
+
+// 함수에 소유권 넘기기:
+void run(std::unique_ptr<Command> cmd) {
+    cmd->execute(store);
+}  // cmd가 스코프를 벗어나면서 자동 delete
+
+run(std::move(cmd));  // 소유권 이전
+// cmd는 이제 nullptr
+\end{lstlisting}
+
+\section{parseCommand 팩토리 함수}
+
+우리 프로젝트에서 Factory 패턴의 구현입니다:
+
+\begin{lstlisting}[style=shell,numbers=none]
+./kvstore set name Alice
+          ^^^ ^^^^ ^^^^^
+          |   |    |
+          |   |    args[1]  (argv[3])
+          |   args[0]       (argv[2])
+          command name      (argv[1])
+\end{lstlisting}
+
+\section{코드: main.cpp (완성)}
+
+\begin{lstlisting}[style=cpp,title={\file{src/main.cpp} (완성)}]
+#include "command.h"
+#include "store.h"
+#include <iostream>
+#include <memory>
+#include <string>
+
+static void printUsage() {
+    std::cerr << "Usage: kvstore <command> [args...]" << std::endl;
+    std::cerr << "Commands:" << std::endl;
+    std::cerr << "  set <key> <value>" << std::endl;
+    std::cerr << "  get <key>" << std::endl;
+    std::cerr << "  delete <key>" << std::endl;
+    std::cerr << "  list" << std::endl;
+    std::cerr << "  count" << std::endl;
+}
+
+static std::unique_ptr<Command> parseCommand(int argc, char* argv[]) {
+    if (argc < 2) {
+        return nullptr;
+    }
+
+    std::string cmd = argv[1];
+
+    if (cmd == "set" && argc == 4) {
+        return std::make_unique<SetCommand>(argv[2], argv[3]);
+    }
+    if (cmd == "get" && argc == 3) {
+        return std::make_unique<GetCommand>(argv[2]);
+    }
+    if (cmd == "delete" && argc == 3) {
+        return std::make_unique<DeleteCommand>(argv[2]);
+    }
+    if (cmd == "list" && argc == 2) {
+        return std::make_unique<ListCommand>();
+    }
+    if (cmd == "count" && argc == 2) {
+        return std::make_unique<CountCommand>();
+    }
+
+    return nullptr;
+}
+
+int main(int argc, char* argv[]) {
+    auto cmd = parseCommand(argc, argv);
+    if (!cmd) {
+        printUsage();
+        return 1;
+    }
+
+    KVStore store("kvstore.dat");
+    store.load();
+    cmd->execute(store);
+    return 0;
+}
+\end{lstlisting}
+
+\textbf{핵심 포인트:}
+\begin{itemize}[nosep]
+\item \code{parseCommand}는 \textbf{팩토리 함수} — CLI 인자를 보고 적절한 Command 객체를 생성
+\item 반환 타입은 \code{unique\_ptr<Command>} — 기반 클래스 포인터로 다형성 활용
+\item \code{std::make\_unique<SetCommand>(...)} — 힙에 SetCommand를 생성하고 unique\_ptr로 감싸기
+\item \code{main()}은 어떤 Command가 생성되는지 몰라도 됨 — \code{cmd->execute()}만 호출
+\item \code{static} 함수 — 이 파일에서만 사용 가능 (내부 링키지)
+\end{itemize}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item Factory 패턴 = 객체 생성 로직을 분리하여 호출자가 구체 타입을 몰라도 되게 함
+\item \code{unique\_ptr<T>}는 소유권이 하나뿐인 스마트 포인터 — 스코프 벗어나면 자동 delete
+\item \code{std::make\_unique<T>(...)}로 생성, \code{std::move()}로 소유권 이전
+\item \code{unique\_ptr}은 복사 불가, 이동만 가능
+\item Factory 함수가 \code{unique\_ptr<Base>}를 반환 → 다형성 + 자동 메모리 관리
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+parseCommand 함수의 빈칸을 채우세요:
+
+\begin{lstlisting}[style=cpp,numbers=none]
+static std::__________<Command> parseCommand(
+        int argc, char* argv[]) {
+    if (argc < 2) return _______;
+
+    std::string cmd = argv[1];
+
+    if (cmd == "set" && argc == 4) {
+        return std::____________<SetCommand>(
+            argv[2], argv[3]);
+    }
+    if (cmd == "get" && argc == 3) {
+        return std::____________<GetCommand>(argv[2]);
+    }
+    return nullptr;
+}
+
+int main(int argc, char* argv[]) {
+    auto cmd = parseCommand(argc, argv);
+    if (!cmd) { return 1; }
+
+    KVStore store("kvstore.dat");
+    store.load();
+    cmd->_______(store);  // 다형성: 실제 타입의 execute 호출
+    return 0;
+}
+\end{lstlisting}
+
+\textbf{정답}: unique\_ptr, nullptr, make\_unique, make\_unique, execute
+\end{quizbox}
+
+% ============================================================
+\chapter{Strategy 패턴 — Exporter 시스템}
+\label{ch:strategy}
+% ============================================================
+
+이 장에서는 \textbf{Strategy 패턴}을 배우고, 데이터를 CSV나 JSON 형식으로 내보내는 Exporter 시스템을 만듭니다.
+
+\section{Strategy 패턴이란?}
+
+\begin{conceptbox}[title={Strategy 패턴}]
+\textbf{핵심}: 알고리즘(전략)을 인터페이스 뒤에 숨기고, 실행 시점에 교체할 수 있게 한다.\\[6pt]
+Command vs Strategy:
+\begin{itemize}[nosep]
+\item Command = ``무엇을 할 것인가''를 캡슐화 (set, get, delete...)
+\item Strategy = ``어떻게 할 것인가''를 캡슐화 (CSV로? JSON으로?)
+\end{itemize}
+\end{conceptbox}
+
+\begin{pythonbox}
+Python 비유: 함수를 인자로 넘기는 것과 비슷합니다.\\
+\code{def export\_data(data, formatter):}\\
+\code{~~~~return formatter(data)}\\[6pt]
+C++에서는 이것을 인터페이스(추상 클래스)로 구현합니다.
+\end{pythonbox}
+
+\section{std::ostream\& 추상화}
+
+\code{std::ostream\&}는 ``출력 스트림에 대한 참조''입니다. \code{std::cout}(화면), \code{std::ofstream}(파일), \code{std::ostringstream}(문자열) 모두 \code{ostream}의 파생 클래스입니다.
+
+\begin{lstlisting}[style=cpp]
+// 이 함수는 화면, 파일, 문자열 어디에든 출력할 수 있다
+void write(std::ostream& out) {
+    out << "hello" << std::endl;
+}
+
+// 사용:
+write(std::cout);              // 화면에
+std::ofstream f("out.txt");
+write(f);                      // 파일에
+\end{lstlisting}
+
+\section{코드: exporter.h}
+
+\begin{lstlisting}[style=cpp,title={\file{src/exporter.h}}]
+#ifndef EXPORTER_H
+#define EXPORTER_H
+
+#include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+
+class Exporter {
+public:
+    virtual ~Exporter() = default;
+    virtual void exportData(
+        std::ostream& out,
+        const std::vector<std::pair<std::string, std::string>>& data
+    ) const = 0;
+};
+
+class CsvExporter : public Exporter {
+public:
+    void exportData(
+        std::ostream& out,
+        const std::vector<std::pair<std::string, std::string>>& data
+    ) const override;
+};
+
+class JsonExporter : public Exporter {
+public:
+    void exportData(
+        std::ostream& out,
+        const std::vector<std::pair<std::string, std::string>>& data
+    ) const override;
+};
+
+std::unique_ptr<Exporter> createExporter(const std::string& format);
+
+#endif
+\end{lstlisting}
+
+\textbf{설명:}
+\begin{itemize}[nosep]
+\item \code{Exporter}는 Strategy 인터페이스 — \code{exportData()}가 순수 가상 함수
+\item \code{CsvExporter}, \code{JsonExporter}가 구체적인 전략(Concrete Strategy)
+\item \code{createExporter()}는 Factory 함수 — format 문자열로 적절한 Exporter 생성
+\item Strategy + Factory 조합: 흔하게 사용되는 패턴
+\end{itemize}
+
+\section{코드: exporter.cpp}
+
+\begin{lstlisting}[style=cpp,title={\file{src/exporter.cpp}}]
+#include "exporter.h"
+#include <stdexcept>
+
+void CsvExporter::exportData(
+    std::ostream& out,
+    const std::vector<std::pair<std::string, std::string>>& data
+) const {
+    out << "key,value" << '\n';
+    for (const auto& [key, value] : data) {
+        out << key << ',' << value << '\n';
+    }
+}
+
+void JsonExporter::exportData(
+    std::ostream& out,
+    const std::vector<std::pair<std::string, std::string>>& data
+) const {
+    out << "{\n";
+    for (std::size_t i = 0; i < data.size(); ++i) {
+        out << "  \"" << data[i].first
+            << "\": \"" << data[i].second << "\"";
+        if (i + 1 < data.size()) {
+            out << ',';
+        }
+        out << '\n';
+    }
+    out << "}\n";
+}
+
+std::unique_ptr<Exporter> createExporter(const std::string& format) {
+    if (format == "csv") {
+        return std::make_unique<CsvExporter>();
+    }
+    if (format == "json") {
+        return std::make_unique<JsonExporter>();
+    }
+    return nullptr;
+}
+\end{lstlisting}
+
+\section{ExportCommand 추가}
+
+command.h에 ExportCommand를 추가합니다:
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.h}에 추가}]
+// (기존 #include 뒤에 추가)
+#include "exporter.h"
+#include <memory>
+
+// ... (기존 Command 클래스들) ...
+
+class ExportCommand : public Command {
+public:
+    explicit ExportCommand(std::unique_ptr<Exporter> exporter);
+    void execute(KVStore& store) override;
+private:
+    std::unique_ptr<Exporter> exporter_;
+};
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.cpp}에 추가}]
+// --- ExportCommand ---
+ExportCommand::ExportCommand(std::unique_ptr<Exporter> exporter)
+    : exporter_(std::move(exporter)) {}
+
+void ExportCommand::execute(KVStore& store) {
+    auto data = store.list();
+    exporter_->exportData(std::cout, data);
+}
+\end{lstlisting}
+
+\textbf{주목}: \code{std::move(exporter)}로 소유권을 이전합니다. \code{unique\_ptr}은 복사할 수 없으므로 반드시 \code{move}해야 합니다.
+
+\section{main.cpp에 export 명령 추가}
+
+parseCommand 함수에 추가합니다:
+
+\begin{lstlisting}[style=cpp,title={parseCommand에 추가}]
+    if (cmd == "export" && argc == 3) {
+        auto exporter = createExporter(argv[2]);
+        if (!exporter) {
+            std::cerr << "Error: unknown format: " << argv[2]
+                      << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<ExportCommand>(std::move(exporter));
+    }
+\end{lstlisting}
+
+사용법: \code{./kvstore export csv} 또는 \code{./kvstore export json}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item Strategy 패턴 = 알고리즘을 인터페이스 뒤에 숨기고 교체 가능하게 함
+\item \code{std::ostream\&}로 출력 대상을 추상화 (화면, 파일, 문자열)
+\item Strategy + Factory 조합은 실무에서 자주 사용
+\item \code{unique\_ptr}을 생성자로 넘길 때 \code{std::move()} 필수
+\item 새로운 export 형식 추가 시 기존 코드 수정 불필요 (OCP)
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+Strategy 패턴을 구현하세요:
+
+\begin{lstlisting}[style=cpp,numbers=none]
+class Exporter {
+public:
+    _______ ~Exporter() = default;
+    virtual void exportData(
+        std::_______ & out,   // 출력 스트림 타입
+        const std::vector<...>& data
+    ) const ___;              // 순수 가상
+};
+
+// Factory + Strategy 조합:
+ExportCommand::ExportCommand(
+        std::unique_ptr<Exporter> exporter)
+    : exporter_(std::____(exporter)) {} // 소유권 이전
+\end{lstlisting}
+
+\textbf{정답}: virtual, ostream, = 0, move
+\end{quizbox}
+
+% ============================================================
+\chapter{에러 처리와 방어적 프로그래밍 — 마무리}
+\label{ch:error}
+% ============================================================
+
+이 장에서는 프로그램을 견고하게 만드는 에러 처리와 방어적 프로그래밍 기법을 적용합니다.
+
+\section{에러 처리 전략}
+
+우리 프로그램에서 발생할 수 있는 에러:
+
+\begin{itemize}[nosep]
+\item 잘못된 인자 개수 (\code{./kvstore set} — value 없음)
+\item 존재하지 않는 키 (\code{./kvstore get nonexistent})
+\item 알 수 없는 명령어 (\code{./kvstore foo})
+\item 파일 쓰기 실패 (디스크 꽉 참, 권한 없음)
+\item 빈 키 (\code{./kvstore set "" value})
+\item 알 수 없는 export 형식 (\code{./kvstore export xml})
+\end{itemize}
+
+\section{입력 검증}
+
+신뢰할 수 없는 입력은 시스템 경계(system boundary)에서 검증합니다. 우리 프로그램에서 시스템 경계는 \code{main()} — CLI 인자를 받는 지점입니다.
+
+\begin{lstlisting}[style=cpp]
+// 빈 키 검증을 parseCommand에 추가
+if (cmd == "set" && argc == 4) {
+    std::string key = argv[2];
+    if (key.empty()) {
+        std::cerr << "Error: key cannot be empty" << std::endl;
+        return nullptr;
+    }
+    return std::make_unique<SetCommand>(key, argv[3]);
+}
+\end{lstlisting}
+
+\section{const 정확성 (const correctness)}
+
+\begin{conceptbox}[title={const correctness 규칙}]
+\begin{enumerate}[nosep]
+\item 변경하지 않는 매개변수: \code{const T\&}
+\item 변경하지 않는 멤버 함수: \code{... const}
+\item 변경하지 않는 지역 변수: \code{const auto}
+\end{enumerate}
+``가능한 한 많은 것을 const로'' — 의도를 명확히 하고 실수를 방지합니다.
+\end{conceptbox}
+
+\section{최종 코드: command.h}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.h} (최종)}]
+#ifndef COMMAND_H
+#define COMMAND_H
+
+#include "exporter.h"
+#include "store.h"
+#include <memory>
+#include <string>
+
+class Command {
+public:
+    virtual ~Command() = default;
+    virtual void execute(KVStore& store) = 0;
+};
+
+class SetCommand : public Command {
+public:
+    SetCommand(const std::string& key, const std::string& value);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+    std::string value_;
+};
+
+class GetCommand : public Command {
+public:
+    explicit GetCommand(const std::string& key);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+};
+
+class DeleteCommand : public Command {
+public:
+    explicit DeleteCommand(const std::string& key);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+};
+
+class ListCommand : public Command {
+public:
+    void execute(KVStore& store) override;
+};
+
+class CountCommand : public Command {
+public:
+    void execute(KVStore& store) override;
+};
+
+class ExportCommand : public Command {
+public:
+    explicit ExportCommand(std::unique_ptr<Exporter> exporter);
+    void execute(KVStore& store) override;
+private:
+    std::unique_ptr<Exporter> exporter_;
+};
+
+#endif
+\end{lstlisting}
+
+\section{최종 코드: command.cpp}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.cpp} (최종)}]
+#include "command.h"
+#include <iostream>
+
+// --- SetCommand ---
+SetCommand::SetCommand(const std::string& key, const std::string& value)
+    : key_(key), value_(value) {}
+
+void SetCommand::execute(KVStore& store) {
+    store.set(key_, value_);
+    store.save();
+    std::cout << "OK" << std::endl;
+}
+
+// --- GetCommand ---
+GetCommand::GetCommand(const std::string& key)
+    : key_(key) {}
+
+void GetCommand::execute(KVStore& store) {
+    const auto result = store.get(key_);
+    if (result) {
+        std::cout << *result << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_ << std::endl;
+    }
+}
+
+// --- DeleteCommand ---
+DeleteCommand::DeleteCommand(const std::string& key)
+    : key_(key) {}
+
+void DeleteCommand::execute(KVStore& store) {
+    if (store.remove(key_)) {
+        store.save();
+        std::cout << "OK" << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_ << std::endl;
+    }
+}
+
+// --- ListCommand ---
+void ListCommand::execute(KVStore& store) {
+    const auto entries = store.list();
+    if (entries.empty()) {
+        std::cout << "(empty)" << std::endl;
+        return;
+    }
+    for (const auto& [key, value] : entries) {
+        std::cout << key << "\t" << value << std::endl;
+    }
+}
+
+// --- CountCommand ---
+void CountCommand::execute(KVStore& store) {
+    std::cout << store.count() << std::endl;
+}
+
+// --- ExportCommand ---
+ExportCommand::ExportCommand(std::unique_ptr<Exporter> exporter)
+    : exporter_(std::move(exporter)) {}
+
+void ExportCommand::execute(KVStore& store) {
+    const auto data = store.list();
+    exporter_->exportData(std::cout, data);
+}
+\end{lstlisting}
+
+\section{최종 코드: main.cpp}
+
+\begin{lstlisting}[style=cpp,title={\file{src/main.cpp} (최종)}]
+#include "command.h"
+#include "store.h"
+#include <iostream>
+#include <memory>
+#include <string>
+
+static void printUsage() {
+    std::cerr << "Usage: kvstore <command> [args...]" << std::endl;
+    std::cerr << "Commands:" << std::endl;
+    std::cerr << "  set <key> <value>   Set a key-value pair" << std::endl;
+    std::cerr << "  get <key>           Get value by key" << std::endl;
+    std::cerr << "  delete <key>        Delete a key" << std::endl;
+    std::cerr << "  list                List all pairs" << std::endl;
+    std::cerr << "  count               Count entries" << std::endl;
+    std::cerr << "  export <csv|json>   Export data" << std::endl;
+}
+
+static std::unique_ptr<Command> parseCommand(int argc, char* argv[]) {
+    if (argc < 2) {
+        return nullptr;
+    }
+
+    const std::string cmd = argv[1];
+
+    if (cmd == "set") {
+        if (argc != 4) {
+            std::cerr << "Error: set requires <key> <value>"
+                      << std::endl;
+            return nullptr;
+        }
+        const std::string key = argv[2];
+        if (key.empty()) {
+            std::cerr << "Error: key cannot be empty" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<SetCommand>(key, argv[3]);
+    }
+
+    if (cmd == "get") {
+        if (argc != 3) {
+            std::cerr << "Error: get requires <key>" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<GetCommand>(argv[2]);
+    }
+
+    if (cmd == "delete") {
+        if (argc != 3) {
+            std::cerr << "Error: delete requires <key>" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<DeleteCommand>(argv[2]);
+    }
+
+    if (cmd == "list") {
+        if (argc != 2) {
+            std::cerr << "Error: list takes no arguments" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<ListCommand>();
+    }
+
+    if (cmd == "count") {
+        if (argc != 2) {
+            std::cerr << "Error: count takes no arguments" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<CountCommand>();
+    }
+
+    if (cmd == "export") {
+        if (argc != 3) {
+            std::cerr << "Error: export requires <csv|json>"
+                      << std::endl;
+            return nullptr;
+        }
+        auto exporter = createExporter(argv[2]);
+        if (!exporter) {
+            std::cerr << "Error: unknown format: " << argv[2]
+                      << " (use csv or json)" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<ExportCommand>(std::move(exporter));
+    }
+
+    std::cerr << "Error: unknown command: " << cmd << std::endl;
+    return nullptr;
+}
+
+int main(int argc, char* argv[]) {
+    auto cmd = parseCommand(argc, argv);
+    if (!cmd) {
+        printUsage();
+        return 1;
+    }
+
+    KVStore store("kvstore.dat");
+    store.load();
+    cmd->execute(store);
+    return 0;
+}
+\end{lstlisting}
+
+\section{최종 CMakeLists.txt}
+
+\begin{lstlisting}[style=cmake,title={\file{CMakeLists.txt} (최종)}]
+cmake_minimum_required(VERSION 3.16)
+project(mini-kvstore LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(kvstore
+    src/main.cpp
+    src/store.cpp
+    src/command.cpp
+    src/exporter.cpp
+)
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item 입력 검증은 시스템 경계(main, CLI 인자)에서 한다
+\item 내부 코드는 이미 검증된 데이터를 신뢰한다
+\item 구체적인 에러 메시지를 stderr로 출력한다
+\item const correctness: 변경하지 않는 것은 모두 const로
+\item 각 명령의 인자 개수를 검증하고 구체적인 에러 메시지 출력
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+방어적 프로그래밍 원칙을 적용하세요. 아래 코드에서 누락된 검증을 추가하세요:
+
+\begin{lstlisting}[style=cpp,numbers=none]
+if (cmd == "delete") {
+    // Q1: argc가 정확히 몇이어야 하는가?
+    if (argc != ___) {
+        std::cerr << "Error: delete requires <key>"
+                  << std::endl;
+        return nullptr;
+    }
+    return std::make_unique<DeleteCommand>(argv[2]);
+}
+
+// Q2: 모든 if문에 해당하지 않은 경우, 무엇을 출력해야 하는가?
+std::cerr << "Error: _______ command: " << cmd
+          << std::endl;
+return _______;
+\end{lstlisting}
+
+\textbf{정답}: 3, unknown, nullptr
+\end{quizbox}
+
+% ============================================================
+\chapter{테스트와 검증 — test.sh}
+\label{ch:test}
+% ============================================================
+
+이 장에서는 셸 스크립트로 프로그램의 통합 테스트(integration test)를 작성합니다.
+
+\section{왜 셸 스크립트로 테스트하는가?}
+
+CLI 프로그램은 ``입력 → 출력''이 명확합니다. 셸 스크립트에서 프로그램을 실행하고, 출력이 예상과 같은지 비교하면 됩니다.
+
+\begin{pythonbox}
+Python에서는 \code{pytest}를 쓰지만, CLI 도구 테스트에는 셸 스크립트가 더 직접적입니다.\\
+우리가 테스트하는 것은 ``이 바이너리에 이 인자를 주면 이 출력이 나오는가?''입니다.
+\end{pythonbox}
+
+\section{테스트 패턴}
+
+\begin{lstlisting}[style=shell,numbers=none]
+# 기본 패턴:
+output=$(./kvstore get name)
+expected="Alice"
+if [ "$output" != "$expected" ]; then
+    echo "FAIL: expected '$expected', got '$output'"
+    exit 1
+fi
+\end{lstlisting}
+
+\section{코드: test.sh}
+
+\begin{lstlisting}[style=shell,title={\file{test.sh}}]
+#!/bin/bash
+set -e
+
+PASS=0
+FAIL=0
+BIN=./build/kvstore
+DATA=kvstore.dat
+
+pass() {
+    PASS=$((PASS + 1))
+    echo "  PASS: $1"
+}
+
+fail() {
+    FAIL=$((FAIL + 1))
+    echo "  FAIL: $1 - expected '$2', got '$3'"
+}
+
+check() {
+    local desc="$1" expected="$2" actual="$3"
+    if [ "$actual" = "$expected" ]; then
+        pass "$desc"
+    else
+        fail "$desc" "$expected" "$actual"
+    fi
+}
+
+check_stderr() {
+    local desc="$1" pattern="$2"
+    local output
+    output=$($BIN $3 2>&1 || true)
+    if echo "$output" | grep -q "$pattern"; then
+        pass "$desc"
+    else
+        fail "$desc" "contains '$pattern'" "$output"
+    fi
+}
+
+cleanup() {
+    rm -f "$DATA"
+}
+
+echo "=== Building ==="
+mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug \
+    > /dev/null 2>&1 && make > /dev/null 2>&1 && cd ..
+echo "Build OK"
+echo ""
+
+# --- Test: Basic set/get ---
+echo "=== Basic Operations ==="
+cleanup
+check "set key" "OK" "$($BIN set name Alice)"
+check "get key" "Alice" "$($BIN get name)"
+check "count after set" "1" "$($BIN count)"
+
+# --- Test: Overwrite ---
+echo "=== Overwrite ==="
+$BIN set name Bob > /dev/null
+check "get overwritten" "Bob" "$($BIN get name)"
+check "count unchanged" "1" "$($BIN count)"
+
+# --- Test: Multiple keys ---
+echo "=== Multiple Keys ==="
+$BIN set age 30 > /dev/null
+$BIN set city Seoul > /dev/null
+check "count multiple" "3" "$($BIN count)"
+
+# --- Test: List ---
+echo "=== List ==="
+output=$($BIN list)
+check "list contains age" "yes" \
+    "$(echo "$output" | grep -q 'age' && echo yes || echo no)"
+check "list contains name" "yes" \
+    "$(echo "$output" | grep -q 'name' && echo yes || echo no)"
+
+# --- Test: Delete ---
+echo "=== Delete ==="
+check "delete key" "OK" "$($BIN delete age)"
+check "count after delete" "2" "$($BIN count)"
+
+# --- Test: Get missing key ---
+echo "=== Error Cases ==="
+check_stderr "get missing key" "not found" "get nonexistent"
+
+# --- Test: Delete missing key ---
+check_stderr "delete missing key" "not found" "delete nonexistent"
+
+# --- Test: No arguments ---
+check_stderr "no arguments" "Usage" ""
+
+# --- Test: Unknown command ---
+check_stderr "unknown command" "unknown command" "foo"
+
+# --- Test: Wrong arg count ---
+check_stderr "set missing value" "requires" "set onlykey"
+
+# --- Test: Persistence ---
+echo "=== Persistence ==="
+cleanup
+$BIN set hello world > /dev/null
+check "persist after restart" "world" "$($BIN get hello)"
+
+# --- Test: Export CSV ---
+echo "=== Export ==="
+output=$($BIN export csv)
+check "csv header" "yes" \
+    "$(echo "$output" | grep -q 'key,value' && echo yes || echo no)"
+check "csv data" "yes" \
+    "$(echo "$output" | grep -q 'hello,world' && echo yes || echo no)"
+
+# --- Test: Export JSON ---
+output=$($BIN export json)
+check "json format" "yes" \
+    "$(echo "$output" | grep -q '"hello"' && echo yes || echo no)"
+
+# --- Test: Unknown export format ---
+check_stderr "unknown format" "unknown format" "export xml"
+
+# --- Cleanup & Summary ---
+cleanup
+echo ""
+echo "=== Results ==="
+echo "Passed: $PASS"
+echo "Failed: $FAIL"
+
+if [ "$FAIL" -gt 0 ]; then
+    exit 1
+fi
+echo "All tests passed!"
+\end{lstlisting}
+
+\textbf{핵심 포인트:}
+\begin{itemize}[nosep]
+\item \code{set -e} — 에러 발생 시 스크립트 즉시 중단
+\item \code{check} 함수 — 테스트 패턴을 함수로 추출 (반복 제거)
+\item \code{cleanup} — 각 테스트 섹션 전에 데이터 파일 삭제 (격리)
+\item \code{\$(cmd)} — 명령의 stdout 캡처
+\item \code{2>\&1} — stderr를 stdout으로 리다이렉트하여 에러 메시지도 캡처
+\item \code{|| true} — 에러 종료 코드를 무시 (set -e에서 스크립트 중단 방지)
+\end{itemize}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item CLI 프로그램은 셸 스크립트로 통합 테스트를 작성하기 좋다
+\item 테스트 패턴: 실행 → 출력 캡처 → 예상값과 비교
+\item \code{set -e}로 실패 시 즉시 중단
+\item helper 함수로 테스트 코드의 반복을 줄인다
+\item 에러 케이스도 반드시 테스트한다
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+셸 스크립트 테스트의 빈칸을 채우세요:
+
+\begin{lstlisting}[style=shell,numbers=none]
+#!/bin/bash
+_____ -e    # 에러 시 즉시 중단
+
+# stdout 캡처
+output=____($BIN get name)
+
+# 예상값 비교
+if [ "$output" ____ "$expected" ]; then
+    echo "PASS"
+fi
+
+# stderr도 캡처하려면:
+output=$($BIN bad_cmd _____  || true)
+\end{lstlisting}
+
+\textbf{정답}: set, \$, =, 2>\&1
+\end{quizbox}
+
+% ============================================================
+\appendix
+% ============================================================
+
+% ============================================================
+\chapter{전체 코드 (Complete Code Reference)}
+\label{app:code}
+% ============================================================
+
+이 부록에는 완성된 mini-kvstore의 전체 소스 코드가 있습니다.
+
+\section{프로젝트 구조}
+
+\begin{lstlisting}[style=shell,numbers=none]
+mini-kvstore/
+  CMakeLists.txt
+  test.sh
+  src/
+    main.cpp
+    store.h
+    store.cpp
+    command.h
+    command.cpp
+    exporter.h
+    exporter.cpp
+\end{lstlisting}
+
+\section{CMakeLists.txt}
+
+\begin{lstlisting}[style=cmake,title={\file{CMakeLists.txt}}]
+cmake_minimum_required(VERSION 3.16)
+project(mini-kvstore LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(kvstore
+    src/main.cpp
+    src/store.cpp
+    src/command.cpp
+    src/exporter.cpp
+)
+\end{lstlisting}
+
+\section{src/store.h}
+
+\begin{lstlisting}[style=cpp,title={\file{src/store.h}}]
+#ifndef STORE_H
+#define STORE_H
+
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
+
+class KVStore {
+public:
+    explicit KVStore(const std::string& filepath);
+
+    void set(const std::string& key, const std::string& value);
+    std::optional<std::string> get(const std::string& key) const;
+    bool remove(const std::string& key);
+    std::vector<std::pair<std::string, std::string>> list() const;
+    std::size_t count() const;
+
+    void save() const;
+    void load();
+
+private:
+    std::string filepath_;
+    std::map<std::string, std::string> data_;
+};
+
+#endif
+\end{lstlisting}
+
+\section{src/store.cpp}
+
+\begin{lstlisting}[style=cpp,title={\file{src/store.cpp}}]
+#include "store.h"
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+
+KVStore::KVStore(const std::string& filepath)
+    : filepath_(filepath) {}
+
+void KVStore::set(const std::string& key, const std::string& value) {
+    data_[key] = value;
+}
+
+std::optional<std::string> KVStore::get(const std::string& key) const {
+    auto it = data_.find(key);
+    if (it == data_.end()) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+bool KVStore::remove(const std::string& key) {
+    return data_.erase(key) > 0;
+}
+
+std::vector<std::pair<std::string, std::string>> KVStore::list() const {
+    return std::vector<std::pair<std::string, std::string>>(
+        data_.begin(), data_.end());
+}
+
+std::size_t KVStore::count() const {
+    return data_.size();
+}
+
+void KVStore::save() const {
+    std::ofstream out(filepath_);
+    if (!out) {
+        throw std::runtime_error("Cannot open file: " + filepath_);
+    }
+    for (const auto& [key, value] : data_) {
+        out << key << '\t' << value << '\n';
+    }
+}
+
+void KVStore::load() {
+    std::ifstream in(filepath_);
+    if (!in) {
+        return;
+    }
+    data_.clear();
+    std::string line;
+    while (std::getline(in, line)) {
+        auto tab = line.find('\t');
+        if (tab != std::string::npos) {
+            std::string key = line.substr(0, tab);
+            std::string value = line.substr(tab + 1);
+            data_[key] = value;
+        }
+    }
+}
+\end{lstlisting}
+
+\section{src/command.h}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.h}}]
+#ifndef COMMAND_H
+#define COMMAND_H
+
+#include "exporter.h"
+#include "store.h"
+#include <memory>
+#include <string>
+
+class Command {
+public:
+    virtual ~Command() = default;
+    virtual void execute(KVStore& store) = 0;
+};
+
+class SetCommand : public Command {
+public:
+    SetCommand(const std::string& key, const std::string& value);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+    std::string value_;
+};
+
+class GetCommand : public Command {
+public:
+    explicit GetCommand(const std::string& key);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+};
+
+class DeleteCommand : public Command {
+public:
+    explicit DeleteCommand(const std::string& key);
+    void execute(KVStore& store) override;
+private:
+    std::string key_;
+};
+
+class ListCommand : public Command {
+public:
+    void execute(KVStore& store) override;
+};
+
+class CountCommand : public Command {
+public:
+    void execute(KVStore& store) override;
+};
+
+class ExportCommand : public Command {
+public:
+    explicit ExportCommand(std::unique_ptr<Exporter> exporter);
+    void execute(KVStore& store) override;
+private:
+    std::unique_ptr<Exporter> exporter_;
+};
+
+#endif
+\end{lstlisting}
+
+\section{src/command.cpp}
+
+\begin{lstlisting}[style=cpp,title={\file{src/command.cpp}}]
+#include "command.h"
+#include <iostream>
+
+SetCommand::SetCommand(const std::string& key, const std::string& value)
+    : key_(key), value_(value) {}
+
+void SetCommand::execute(KVStore& store) {
+    store.set(key_, value_);
+    store.save();
+    std::cout << "OK" << std::endl;
+}
+
+GetCommand::GetCommand(const std::string& key)
+    : key_(key) {}
+
+void GetCommand::execute(KVStore& store) {
+    const auto result = store.get(key_);
+    if (result) {
+        std::cout << *result << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_ << std::endl;
+    }
+}
+
+DeleteCommand::DeleteCommand(const std::string& key)
+    : key_(key) {}
+
+void DeleteCommand::execute(KVStore& store) {
+    if (store.remove(key_)) {
+        store.save();
+        std::cout << "OK" << std::endl;
+    } else {
+        std::cerr << "Error: key not found: " << key_ << std::endl;
+    }
+}
+
+void ListCommand::execute(KVStore& store) {
+    const auto entries = store.list();
+    if (entries.empty()) {
+        std::cout << "(empty)" << std::endl;
+        return;
+    }
+    for (const auto& [key, value] : entries) {
+        std::cout << key << "\t" << value << std::endl;
+    }
+}
+
+void CountCommand::execute(KVStore& store) {
+    std::cout << store.count() << std::endl;
+}
+
+ExportCommand::ExportCommand(std::unique_ptr<Exporter> exporter)
+    : exporter_(std::move(exporter)) {}
+
+void ExportCommand::execute(KVStore& store) {
+    const auto data = store.list();
+    exporter_->exportData(std::cout, data);
+}
+\end{lstlisting}
+
+\section{src/exporter.h}
+
+\begin{lstlisting}[style=cpp,title={\file{src/exporter.h}}]
+#ifndef EXPORTER_H
+#define EXPORTER_H
+
+#include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+
+class Exporter {
+public:
+    virtual ~Exporter() = default;
+    virtual void exportData(
+        std::ostream& out,
+        const std::vector<std::pair<std::string, std::string>>& data
+    ) const = 0;
+};
+
+class CsvExporter : public Exporter {
+public:
+    void exportData(
+        std::ostream& out,
+        const std::vector<std::pair<std::string, std::string>>& data
+    ) const override;
+};
+
+class JsonExporter : public Exporter {
+public:
+    void exportData(
+        std::ostream& out,
+        const std::vector<std::pair<std::string, std::string>>& data
+    ) const override;
+};
+
+std::unique_ptr<Exporter> createExporter(const std::string& format);
+
+#endif
+\end{lstlisting}
+
+\section{src/exporter.cpp}
+
+\begin{lstlisting}[style=cpp,title={\file{src/exporter.cpp}}]
+#include "exporter.h"
+#include <stdexcept>
+
+void CsvExporter::exportData(
+    std::ostream& out,
+    const std::vector<std::pair<std::string, std::string>>& data
+) const {
+    out << "key,value" << '\n';
+    for (const auto& [key, value] : data) {
+        out << key << ',' << value << '\n';
+    }
+}
+
+void JsonExporter::exportData(
+    std::ostream& out,
+    const std::vector<std::pair<std::string, std::string>>& data
+) const {
+    out << "{\n";
+    for (std::size_t i = 0; i < data.size(); ++i) {
+        out << "  \"" << data[i].first
+            << "\": \"" << data[i].second << "\"";
+        if (i + 1 < data.size()) {
+            out << ',';
+        }
+        out << '\n';
+    }
+    out << "}\n";
+}
+
+std::unique_ptr<Exporter> createExporter(const std::string& format) {
+    if (format == "csv") {
+        return std::make_unique<CsvExporter>();
+    }
+    if (format == "json") {
+        return std::make_unique<JsonExporter>();
+    }
+    return nullptr;
+}
+\end{lstlisting}
+
+\section{src/main.cpp}
+
+\begin{lstlisting}[style=cpp,title={\file{src/main.cpp}}]
+#include "command.h"
+#include "store.h"
+#include <iostream>
+#include <memory>
+#include <string>
+
+static void printUsage() {
+    std::cerr << "Usage: kvstore <command> [args...]" << std::endl;
+    std::cerr << "Commands:" << std::endl;
+    std::cerr << "  set <key> <value>   Set a key-value pair"
+              << std::endl;
+    std::cerr << "  get <key>           Get value by key"
+              << std::endl;
+    std::cerr << "  delete <key>        Delete a key"
+              << std::endl;
+    std::cerr << "  list                List all pairs"
+              << std::endl;
+    std::cerr << "  count               Count entries"
+              << std::endl;
+    std::cerr << "  export <csv|json>   Export data"
+              << std::endl;
+}
+
+static std::unique_ptr<Command> parseCommand(
+        int argc, char* argv[]) {
+    if (argc < 2) {
+        return nullptr;
+    }
+
+    const std::string cmd = argv[1];
+
+    if (cmd == "set") {
+        if (argc != 4) {
+            std::cerr << "Error: set requires <key> <value>"
+                      << std::endl;
+            return nullptr;
+        }
+        const std::string key = argv[2];
+        if (key.empty()) {
+            std::cerr << "Error: key cannot be empty"
+                      << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<SetCommand>(key, argv[3]);
+    }
+
+    if (cmd == "get") {
+        if (argc != 3) {
+            std::cerr << "Error: get requires <key>"
+                      << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<GetCommand>(argv[2]);
+    }
+
+    if (cmd == "delete") {
+        if (argc != 3) {
+            std::cerr << "Error: delete requires <key>"
+                      << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<DeleteCommand>(argv[2]);
+    }
+
+    if (cmd == "list") {
+        if (argc != 2) {
+            std::cerr << "Error: list takes no arguments"
+                      << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<ListCommand>();
+    }
+
+    if (cmd == "count") {
+        if (argc != 2) {
+            std::cerr << "Error: count takes no arguments"
+                      << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<CountCommand>();
+    }
+
+    if (cmd == "export") {
+        if (argc != 3) {
+            std::cerr << "Error: export requires <csv|json>"
+                      << std::endl;
+            return nullptr;
+        }
+        auto exporter = createExporter(argv[2]);
+        if (!exporter) {
+            std::cerr << "Error: unknown format: " << argv[2]
+                      << " (use csv or json)" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<ExportCommand>(
+            std::move(exporter));
+    }
+
+    std::cerr << "Error: unknown command: " << cmd
+              << std::endl;
+    return nullptr;
+}
+
+int main(int argc, char* argv[]) {
+    auto cmd = parseCommand(argc, argv);
+    if (!cmd) {
+        printUsage();
+        return 1;
+    }
+
+    KVStore store("kvstore.dat");
+    store.load();
+    cmd->execute(store);
+    return 0;
+}
+\end{lstlisting}
+
+% ============================================================
+\chapter{패턴 요약표 (Pattern Quick Reference)}
+\label{app:patterns}
+% ============================================================
+
+\begin{center}
+\begin{longtable}{>{\bfseries}p{3cm} p{4cm} p{5.5cm}}
+\toprule
+패턴 & 핵심 개념 & 프로젝트 적용 \\
+\midrule
+\endhead
+
+RAII &
+생성자에서 자원 획득,\newline
+소멸자에서 자원 해제 &
+\code{KVStore} 클래스,\newline
+\code{ifstream}/\code{ofstream} 파일 I/O \\
+\midrule
+
+값 의미론 &
+복사가 기본, 참조는 명시적\newline
+\code{const T\&}로 불필요한 복사 방지 &
+모든 함수 매개변수에 적용 \\
+\midrule
+
+추상 클래스\newline(인터페이스) &
+\code{virtual ... = 0} 순수 가상 함수\newline
+다형성의 기반 &
+\code{Command} 기반 클래스,\newline
+\code{Exporter} 기반 클래스 \\
+\midrule
+
+Command &
+요청을 객체로 캡슐화\newline
+인자를 멤버로 저장 &
+\code{SetCommand}, \code{GetCommand},\newline
+\code{DeleteCommand} 등 \\
+\midrule
+
+Factory &
+객체 생성 로직을 분리\newline
+호출자가 구체 타입을 몰라도 됨 &
+\code{parseCommand()} — CLI → Command,\newline
+\code{createExporter()} — format → Exporter \\
+\midrule
+
+Strategy &
+알고리즘을 인터페이스 뒤에 숨기고\newline
+실행 시점에 교체 &
+\code{CsvExporter}, \code{JsonExporter} \\
+\midrule
+
+스마트 포인터 &
+\code{unique\_ptr}: 단일 소유권\newline
+\code{std::move}: 소유권 이전 &
+Factory 함수의 반환 타입,\newline
+\code{ExportCommand}의 멤버 \\
+
+\bottomrule
+\end{longtable}
+\end{center}
+
+% ============================================================
+\chapter{흔한 함정 (Common Pitfalls)}
+\label{app:pitfalls}
+% ============================================================
+
+\section{댕글링 참조 (Dangling Reference)}
+
+\begin{lstlisting}[style=cpp]
+// 위험! 지역 변수의 참조를 반환
+const std::string& bad() {
+    std::string s = "hello";
+    return s;  // s는 함수 끝에서 소멸 -> 댕글링 참조!
+}
+
+// 올바른 방법: 값으로 반환
+std::string good() {
+    std::string s = "hello";
+    return s;  // 이동(move)이 자동으로 일어남
+}
+\end{lstlisting}
+
+\begin{warningbox}
+지역 변수의 참조(\code{\&})를 반환하지 마세요. 함수가 끝나면 지역 변수는 사라지고, 참조는 이미 없는 메모리를 가리킵니다. 값으로 반환하면 C++17 이상에서 이동 최적화(RVO/NRVO)가 자동으로 적용됩니다.
+\end{warningbox}
+
+\section{객체 슬라이싱 (Object Slicing)}
+
+\begin{lstlisting}[style=cpp]
+class Base {
+public:
+    virtual void hello() { std::cout << "Base\n"; }
+};
+
+class Derived : public Base {
+public:
+    void hello() override { std::cout << "Derived\n"; }
+    int extra_ = 42;
+};
+
+Derived d;
+Base b = d;  // 슬라이싱! extra_가 잘려나감
+b.hello();   // "Base" 출력 (Derived가 아님!)
+
+Base& ref = d;   // 참조: OK
+ref.hello();     // "Derived" 출력
+
+Base* ptr = &d;  // 포인터: OK
+ptr->hello();    // "Derived" 출력
+\end{lstlisting}
+
+\begin{warningbox}
+파생 클래스 객체를 기반 클래스 \textbf{값}으로 복사하면, 파생 부분이 잘려나갑니다. 다형성을 사용하려면 반드시 \textbf{참조}(\code{\&})나 \textbf{포인터}(\code{*}, \code{unique\_ptr})를 사용하세요.
+\end{warningbox}
+
+\section{암묵적 변환 (Implicit Conversion)}
+
+\begin{lstlisting}[style=cpp]
+class FilePath {
+public:
+    FilePath(const std::string& path) : path_(path) {}
+    // explicit이 없으면...
+private:
+    std::string path_;
+};
+
+void process(FilePath fp) { /* ... */ }
+
+process("hello.txt");  // string -> FilePath 자동 변환됨!
+// 의도하지 않은 변환이 버그의 원인이 될 수 있음
+\end{lstlisting}
+
+\textbf{해결}: 인자 1개인 생성자에는 항상 \code{explicit}을 붙이세요.
+
+\section{초기화 순서 (Initialization Order)}
+
+멤버 변수는 \textbf{선언 순서}대로 초기화됩니다. 초기화 리스트의 순서가 아닙니다!
+
+\begin{lstlisting}[style=cpp]
+class Example {
+    int a_;    // 1번째로 초기화
+    int b_;    // 2번째로 초기화
+public:
+    // 경고: b_가 a_보다 먼저 초기화 리스트에 있지만,
+    // 실제로는 a_가 먼저 초기화됨 (선언 순서)
+    Example(int x) : b_(x), a_(b_) {}  // 위험! a_는 미초기화된 b_를 사용
+};
+\end{lstlisting}
+
+\begin{warningbox}
+\textbf{규칙}: 초기화 리스트의 순서를 선언 순서와 일치시키세요. 대부분의 컴파일러가 \code{-Wreorder} 경고를 줍니다.
+\end{warningbox}
+
+\section{헤더에서 using namespace std}
+
+\begin{lstlisting}[style=cpp]
+// store.h -- 절대 하지 마세요!
+#ifndef STORE_H
+#define STORE_H
+
+using namespace std;  // 이 헤더를 include하는
+                      // 모든 파일에 영향!
+
+class KVStore {
+    map<string, string> data_;  // std:: 생략 가능하지만...
+};
+#endif
+\end{lstlisting}
+
+\begin{warningbox}
+헤더 파일에 \code{using namespace std;}를 쓰면 이 헤더를 포함하는 모든 파일의 이름 공간이 오염됩니다. 항상 \code{std::}를 명시적으로 쓰세요.
+\end{warningbox}
+
+% ============================================================
+
+\end{document}

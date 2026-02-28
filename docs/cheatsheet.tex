@@ -1,0 +1,907 @@
+% ============================================================
+%  C++ Design Patterns Cheatsheet — mini-kvstore
+%  Exam cram sheet: dense facts + quizzes, no prose
+%  Compile: xelatex cheatsheet.tex
+% ============================================================
+\documentclass[11pt,a4paper]{article}
+
+% --- Fonts & Korean (same as book) ---
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{AppleGothic}
+\setmainfont{Palatino}
+\setmonofont{Menlo}[Scale=0.85]
+
+% --- Layout (tighter than book) ---
+\usepackage[margin=2cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.2}
+
+% --- Packages ---
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+% --- Colors (same as book) ---
+\definecolor{codebg}{HTML}{F5F5F0}
+\definecolor{codeframe}{HTML}{CCCCCC}
+\definecolor{keyword}{HTML}{0000FF}
+\definecolor{string}{HTML}{A31515}
+\definecolor{comment}{HTML}{008000}
+\definecolor{type}{HTML}{267F99}
+\definecolor{boxblue}{HTML}{1565C0}
+\definecolor{boxgreen}{HTML}{2E7D32}
+\definecolor{boxorange}{HTML}{E65100}
+\definecolor{boxpurple}{HTML}{6A1B9A}
+\definecolor{quizbg}{HTML}{FFF8E1}
+\definecolor{summarybg}{HTML}{E3F2FD}
+
+% --- Code listings (same as book) ---
+\lstset{
+  basicstyle=\small\ttfamily,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  breakatwhitespace=false,
+  tabsize=4,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  aboveskip=8pt,
+  belowskip=8pt,
+  xleftmargin=15pt,
+  framexleftmargin=15pt,
+  columns=flexible,
+  keepspaces=true,
+}
+
+\lstdefinestyle{cpp}{
+  language=C++,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  morekeywords={override,final,nullptr,constexpr,noexcept,auto,
+                 decltype,static_assert,unique_ptr,shared_ptr,
+                 make_unique,make_shared,optional,string_view},
+  emph={std,map,string,vector,ifstream,ofstream,istringstream,
+        cout,cerr,endl,cin,getline,optional,nullopt,unique_ptr},
+  emphstyle=\color{type},
+}
+
+\lstdefinestyle{cmake}{
+  language={},
+  keywordstyle=\color{keyword}\bfseries,
+  morekeywords={cmake_minimum_required,project,set,add_executable,
+                target_compile_features,target_include_directories,
+                VERSION,LANGUAGES,PRIVATE},
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  morecomment=[l]{\#},
+}
+
+\lstdefinestyle{shell}{
+  language=bash,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+}
+
+% --- tcolorbox styles (same as book) ---
+\newtcolorbox{quizbox}[1][]{
+  colback=quizbg,
+  colframe=boxorange,
+  fonttitle=\bfseries,
+  title={퀴즈 (Quiz)},
+  breakable,
+  #1
+}
+
+\newtcolorbox{conceptbox}[1][]{
+  colback=white,
+  colframe=boxgreen,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newtcolorbox{warningbox}[1][]{
+  colback=white,
+  colframe=boxorange,
+  fonttitle=\bfseries,
+  title={주의 (Warning)},
+  breakable,
+  #1
+}
+
+% --- Header/Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small C++ Design Patterns Cheatsheet}
+\fancyhead[R]{\small mini-kvstore}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{13.6pt}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=boxblue,
+  urlcolor=boxblue,
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+% ============================================================
+\begin{document}
+
+\begin{center}
+{\Huge\bfseries C++ Design Patterns Cheatsheet}\\[6pt]
+{\large mini-kvstore --- 시험 전 훑어보기용}
+\end{center}
+\vspace{6pt}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Ch 0: 빌드 시스템}
+% ============================================================
+
+\begin{lstlisting}[style=cmake,title={CMakeLists.txt}]
+cmake_minimum_required(VERSION 3.16)   # 최소 CMake 버전
+project(mini-kvstore LANGUAGES CXX)    # 프로젝트 이름
+set(CMAKE_CXX_STANDARD 17)            # C++17
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_executable(kvstore                 # 실행파일 이름
+    src/main.cpp src/store.cpp
+    src/command.cpp src/exporter.cpp)
+target_include_directories(kvstore PRIVATE include)
+\end{lstlisting}
+
+\begin{lstlisting}[style=shell,title={빌드 \& 실행},numbers=none]
+cmake -B build -S .    # 빌드 시스템 생성
+cmake --build build    # 컴파일
+./build/kvstore        # 실행
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={Include Guard --- 헤더 중복 포함 방지}]
+#ifndef STORE_H     // 아직 정의 안 됐으면
+#define STORE_H     // 정의하고
+// ... 헤더 내용 ...
+#endif              // 끝
+\end{lstlisting}
+
+\begin{itemize}[nosep]
+\item 헤더(\code{.h}) = 선언, 소스(\code{.cpp}) = 구현
+\item Python: \code{python main.py} → C++: 컴파일 → 링크 → 실행
+\end{itemize}
+
+\begin{quizbox}[title={Q0-1}]
+\begin{lstlisting}[style=cmake,numbers=none]
+cmake_minimum_required(_______ 3.16)
+_______(mini-kvstore LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD ___)
+add_executable(kvstore _____________)
+\end{lstlisting}
+\textbf{정답}: VERSION, project, 17, src/main.cpp
+\end{quizbox}
+
+\begin{quizbox}[title={Q0-2: Include Guard}]
+\begin{lstlisting}[style=cpp,numbers=none]
+_______ STORE_H
+_______ STORE_H
+class KVStore { /* ... */ };
+_______
+\end{lstlisting}
+\textbf{정답}: \code{\#ifndef}, \code{\#define}, \code{\#endif}
+\end{quizbox}
+
+\begin{quizbox}[title={Q0-3: O/X}]
+\begin{enumerate}[nosep]
+\item CMake는 컴파일러다 (O/X)
+\item Include guard 없이 같은 헤더를 두 번 include하면 에러난다 (O/X)
+\item \code{.h}에는 선언, \code{.cpp}에는 구현을 넣는다 (O/X)
+\end{enumerate}
+\textbf{정답}: X (빌드 시스템 생성기), O, O
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 1: RAII와 값 의미론}
+% ============================================================
+
+\begin{conceptbox}[title={RAII (Resource Acquisition Is Initialization)}]
+\begin{itemize}[nosep]
+\item 생성자 = 자원 획득, 소멸자 = 자원 해제
+\item 스코프 벗어나면 자동 해제 → \textbf{메모리 누수 방지}
+\item \code{std::map}, \code{std::string}, \code{ifstream} 등 모두 RAII
+\end{itemize}
+\end{conceptbox}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{키워드} & \textbf{의미} \\
+\midrule
+\code{explicit} & 인자 1개 생성자의 암묵적 변환 방지 \\
+\code{const T\&} & 복사 없이 읽기 전용 참조 \\
+\code{const} 멤버함수 & 객체 상태를 바꾸지 않음 보장 \\
+\code{std::map<K,V>} & 정렬된 연관 컨테이너 (레드-블랙 트리) \\
+\code{size\_t} & 크기/개수 반환용 부호 없는 정수 타입 \\
+\bottomrule
+\end{tabularx}
+
+\begin{lstlisting}[style=cpp,title={store.h}]
+class KVStore {
+public:
+    explicit KVStore(const std::string& filepath);
+    void set(const std::string& key, const std::string& value);
+    std::string get(const std::string& key) const;
+    bool remove(const std::string& key);
+    std::map<std::string, std::string> all() const;
+    size_t count() const;
+private:
+    std::string filepath_;
+    std::map<std::string, std::string> data_;
+};
+\end{lstlisting}
+
+매개변수 전달 규칙:
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{조건} & \textbf{방식} \\
+\midrule
+작은 타입 (int, bool, 포인터) & 값으로 \\
+큰 객체, 읽기만 & \code{const T\&} \\
+큰 객체, 수정 필요 & \code{T\&} \\
+소유권 넘기기 & \code{unique\_ptr<T>} \\
+\bottomrule
+\end{tabularx}
+
+\begin{quizbox}[title={Q1-1: KVStore 선언}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class KVStore {
+public:
+    ________ KVStore(const std::string& filepath);
+    void set(const std::string& key, const std::string& value);
+    std::string get(const std::string& key) _____;
+    ______ count() _____;
+private:
+    std::___<std::string, std::string> data_;
+};
+\end{lstlisting}
+\textbf{정답}: explicit, const, size\_t, const, map
+\end{quizbox}
+
+\begin{quizbox}[title={Q1-2: O/X}]
+\begin{enumerate}[nosep]
+\item RAII에서 자원 해제는 프로그래머가 수동으로 한다 (O/X)
+\item \code{const} 멤버함수 안에서 \code{data\_.insert(...)}를 호출할 수 있다 (O/X)
+\item \code{explicit}이 없으면 \code{KVStore store = "path.dat";}가 컴파일된다 (O/X)
+\item \code{std::map}은 스코프를 벗어나면 자동으로 메모리가 해제된다 (O/X)
+\end{enumerate}
+\textbf{정답}: X (소멸자가 자동), X (const 위반), O (암묵적 변환), O (RAII)
+\end{quizbox}
+
+\begin{quizbox}[title={Q1-3: 매개변수 전달}]
+빈칸에 \textbf{값}, \textbf{const T\&}, \textbf{T\&} 중 하나를 쓰세요:
+\begin{enumerate}[nosep]
+\item \code{int}를 읽기만 → \_\_\_\_\_
+\item \code{std::string}을 읽기만 → \_\_\_\_\_
+\item \code{std::map}을 수정해야 → \_\_\_\_\_
+\end{enumerate}
+\textbf{정답}: 값, const T\&, T\&
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 2: 파일 I/O와 std::optional}
+% ============================================================
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{키워드} & \textbf{의미} \\
+\midrule
+\code{std::ofstream} & 파일 쓰기 스트림 (RAII → 자동 닫힘) \\
+\code{std::ifstream} & 파일 읽기 스트림 (RAII → 자동 닫힘) \\
+\code{std::getline(in, line)} & 한 줄씩 읽기 \\
+\code{std::istringstream} & 문자열을 스트림처럼 파싱 \\
+\code{std::optional<T>} & 값이 없을 수 있음을 표현 \\
+\code{std::nullopt} & ``없음'' 반환 \\
+\code{auto [k, v] = pair;} & Structured bindings (C++17) \\
+\bottomrule
+\end{tabularx}
+
+\begin{lstlisting}[style=cpp,title={save() / load()}]
+void KVStore::save() const {
+    std::ofstream out(filepath_);
+    for (const auto& [key, value] : data_)
+        out << key << '\t' << value << '\n';
+}   // 소멸자 → 파일 자동 닫힘
+
+void KVStore::load() {
+    std::ifstream in(filepath_);
+    std::string line;
+    while (std::getline(in, line)) {
+        std::istringstream iss(line);
+        std::string k, v;
+        if (iss >> k >> v) data_[k] = v;
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={optional 사용}]
+std::optional<std::string> KVStore::find(const std::string& key) const {
+    auto it = data_.find(key);
+    if (it != data_.end()) return it->second;
+    return std::nullopt;
+}
+// 사용: if (auto v = store.find("name")) { std::cout << *v; }
+\end{lstlisting}
+
+\begin{quizbox}[title={Q2-1: save()}]
+\begin{lstlisting}[style=cpp,numbers=none]
+void KVStore::save() _____ {
+    std::________ out(filepath_);
+    for (const auto& [k, v] : _____)
+        out << k << '\t' << v << '\n';
+}
+// 파일이 자동으로 닫히는 이유: __________
+\end{lstlisting}
+\textbf{정답}: const, ofstream, data\_, RAII (소멸자)
+\end{quizbox}
+
+\begin{quizbox}[title={Q2-2: load()}]
+\begin{lstlisting}[style=cpp,numbers=none]
+void KVStore::load() {
+    std::________ in(filepath_);
+    std::string line;
+    while (std::_______(in, line)) {
+        std::___________ iss(line);
+        std::string k, v;
+        if (iss >> k >> v) _____[k] = v;
+    }
+}
+\end{lstlisting}
+\textbf{정답}: ifstream, getline, istringstream, data\_
+\end{quizbox}
+
+\begin{quizbox}[title={Q2-3: optional}]
+\begin{lstlisting}[style=cpp,numbers=none]
+std::________<std::string>
+KVStore::find(const std::string& key) _____ {
+    auto it = data_.find(key);
+    if (it != data_.end()) return it->second;
+    return std::_______;
+}
+\end{lstlisting}
+\textbf{정답}: optional, const, nullopt
+\end{quizbox}
+
+\begin{quizbox}[title={Q2-4: O/X}]
+\begin{enumerate}[nosep]
+\item \code{optional}의 값이 없을 때 \code{*opt}는 안전하다 (O/X)
+\item \code{opt.has\_value()}로 값 존재 여부를 확인할 수 있다 (O/X)
+\item \code{std::optional<int>}의 기본값은 0이다 (O/X)
+\item \code{ofstream}은 소멸자에서 자동으로 파일을 닫는다 (O/X)
+\end{enumerate}
+\textbf{정답}: X (정의되지 않은 동작), O, X (nullopt), O
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 3: 가상 인터페이스와 추상 클래스}
+% ============================================================
+
+\begin{conceptbox}[title={가상 인터페이스 필수 3요소}]
+\begin{enumerate}[nosep]
+\item \code{virtual \~{}Base() = default;} --- 가상 소멸자
+\item \code{virtual void f() = 0;} --- 순수 가상 함수 (인스턴스 생성 불가)
+\item \code{void f() override;} --- 자식에서 override 명시
+\end{enumerate}
+\end{conceptbox}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{키워드} & \textbf{의미} \\
+\midrule
+\code{virtual} & 런타임 다형성 활성화 \\
+\code{= 0} & 순수 가상 → 추상 클래스 (ABC) \\
+\code{override} & 부모 가상 함수를 재정의함을 명시 (오타 검출) \\
+\code{public} 상속 & \code{class Child : public Base} \\
+\bottomrule
+\end{tabularx}
+
+\begin{lstlisting}[style=cpp,title={Command 인터페이스}]
+class Command {
+public:
+    virtual ~Command() = default;               // 가상 소멸자
+    virtual void execute(KVStore& store) = 0;   // 순수 가상
+};
+
+class SetCommand : public Command {
+    std::string key_, value_;
+public:
+    explicit SetCommand(const std::string& key,
+                        const std::string& value);
+    void execute(KVStore& store) override;       // 재정의
+};
+\end{lstlisting}
+
+\begin{quizbox}[title={Q3-1: Command 인터페이스}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class Command {
+public:
+    _______ ~Command() = default;
+    _______ void execute(KVStore& store) ____ = 0;
+};
+\end{lstlisting}
+\textbf{정답}: virtual, virtual, (빈칸 없음 --- \code{= 0})
+
+\textbf{주의}: \code{execute}에 \code{const}가 안 붙는 이유 = store를 수정하니까
+\end{quizbox}
+
+\begin{quizbox}[title={Q3-2: SetCommand}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class SetCommand : ______ Command {
+    std::string key_, value_;
+public:
+    ________ SetCommand(const std::string& key,
+                        const std::string& value);
+    void execute(KVStore& store) ________;
+};
+
+SetCommand::SetCommand(const std::string& key,
+                       const std::string& value)
+    : ____(key), ______(value) {}
+
+void SetCommand::execute(KVStore& store) {
+    store.___(key_, value_);
+    store.save();
+}
+\end{lstlisting}
+\textbf{정답}: public, explicit, override, key\_, value\_, set
+\end{quizbox}
+
+\begin{quizbox}[title={Q3-3: O/X}]
+\begin{enumerate}[nosep]
+\item 가상 소멸자 없이 \code{unique\_ptr<Base>}로 자식을 삭제하면 안전하다 (O/X)
+\item \code{override}를 빼도 컴파일은 된다 (O/X)
+\item 순수 가상 함수가 하나라도 있으면 인스턴스를 만들 수 없다 (O/X)
+\item 자식이 순수 가상 함수를 구현 안 하면 자식도 추상 클래스가 된다 (O/X)
+\end{enumerate}
+\textbf{정답}: X (자식 소멸자 미호출), O (권장일 뿐), O, O
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 4: Command 패턴}
+% ============================================================
+
+\begin{conceptbox}[title={Command 패턴}]
+\begin{itemize}[nosep]
+\item 각 동작(set, get, delete, list, count)을 \textbf{객체}로 캡슐화
+\item 하나의 인터페이스(\code{execute})로 다양한 동작 실행 = \textbf{다형성}
+\item Python 비교: \code{dispatch["set"] = lambda: ...} → C++: 타입 안전 다형성
+\end{itemize}
+\end{conceptbox}
+
+커맨드 목록: \code{SetCommand}, \code{GetCommand}, \code{DeleteCommand}, \code{ListCommand}, \code{CountCommand} --- 모두 \code{Command}를 상속, \code{execute}를 override.
+
+\begin{quizbox}[title={Q4-1: DeleteCommand}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class DeleteCommand : public Command {
+    std::string key_;
+public:
+    explicit DeleteCommand(const std::string& key);
+    void execute(KVStore& store) ________;
+};
+
+void DeleteCommand::execute(KVStore& store) {
+    if (store.______(key_)) {
+        store.save();
+        std::____ << "OK" << std::endl;
+    } else {
+        std::____ << "Error: key not found: "
+                  << key_ << std::endl;
+    }
+}
+\end{lstlisting}
+\textbf{정답}: override, remove, cout, cerr
+\end{quizbox}
+
+\begin{quizbox}[title={Q4-2: ListCommand}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class ListCommand : public Command {
+public:
+    void execute(KVStore& store) ________ {
+        for (const auto& [k, v] : store.___())
+            std::cout << k << "\t" << v << std::endl;
+    }
+};
+\end{lstlisting}
+\textbf{정답}: override, all
+\end{quizbox}
+
+\begin{quizbox}[title={Q4-3: CountCommand}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class CountCommand : public Command {
+public:
+    void execute(KVStore& store) ________ {
+        std::cout << store._____() << std::endl;
+    }
+};
+\end{lstlisting}
+\textbf{정답}: override, count
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 5: Factory 패턴과 unique\_ptr}
+% ============================================================
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{키워드} & \textbf{의미} \\
+\midrule
+\code{unique\_ptr<T>} & 단독 소유, 자동 해제, \textbf{복사 불가} (이동만) \\
+\code{make\_unique<T>(args)} & 안전한 unique\_ptr 생성 \\
+\code{nullptr} & 생성 실패시 반환값 \\
+\code{std::move(p)} & 소유권 이전 (이후 p는 nullptr) \\
+Factory 패턴 & 객체 생성 로직 분리 → 호출자는 구체 타입 몰라도 됨 \\
+\bottomrule
+\end{tabularx}
+
+\begin{lstlisting}[style=cpp,title={parseCommand() --- Factory}]
+std::unique_ptr<Command> parseCommand(int argc, char* argv[]) {
+    if (argc < 2) return nullptr;
+    std::string cmd = argv[1];
+    if (cmd == "set" && argc == 4)
+        return std::make_unique<SetCommand>(argv[2], argv[3]);
+    if (cmd == "get" && argc == 3)
+        return std::make_unique<GetCommand>(argv[2]);
+    if (cmd == "delete" && argc == 3)
+        return std::make_unique<DeleteCommand>(argv[2]);
+    if (cmd == "list")  return std::make_unique<ListCommand>();
+    if (cmd == "count") return std::make_unique<CountCommand>();
+    return nullptr;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={main.cpp}]
+int main(int argc, char* argv[]) {
+    auto cmd = parseCommand(argc, argv);
+    if (!cmd) { std::cerr << "Usage: ..." << std::endl; return 1; }
+    KVStore store("kvstore.dat");
+    store.load();
+    cmd->execute(store);    // 다형성: 실제 타입의 execute 호출
+    return 0;
+}
+\end{lstlisting}
+
+\begin{quizbox}[title={Q5-1: parseCommand}]
+\begin{lstlisting}[style=cpp,numbers=none]
+std::__________<Command> parseCommand(int argc, char* argv[]) {
+    if (argc < 2) return _______;
+    std::string cmd = argv[1];
+    if (cmd == "set" && argc == 4)
+        return std::___________<SetCommand>(argv[2], argv[3]);
+    if (cmd == "get" && argc == 3)
+        return std::___________<GetCommand>(argv[2]);
+    return nullptr;
+}
+\end{lstlisting}
+\textbf{정답}: unique\_ptr, nullptr, make\_unique, make\_unique
+\end{quizbox}
+
+\begin{quizbox}[title={Q5-2: main()}]
+\begin{lstlisting}[style=cpp,numbers=none]
+int main(int argc, char* argv[]) {
+    auto cmd = ____________(argc, argv);
+    if (!___) { return 1; }
+    KVStore store("kvstore.dat");
+    store._____();
+    cmd->_______(store);
+    return 0;
+}
+\end{lstlisting}
+\textbf{정답}: parseCommand, cmd, load, execute
+\end{quizbox}
+
+\begin{quizbox}[title={Q5-3: O/X}]
+\begin{enumerate}[nosep]
+\item \code{unique\_ptr}은 복사할 수 있다 (O/X)
+\item \code{unique\_ptr}이 스코프를 벗어나면 자동 \code{delete} (O/X)
+\item \code{make\_unique<int>(42)}의 반환 타입은 \code{int*} (O/X)
+\item \code{std::move(p)} 후 \code{p}는 \code{nullptr} (O/X)
+\item Factory 반환 타입은 구체 클래스여야 한다 (O/X)
+\end{enumerate}
+\textbf{정답}: X (이동만), O, X (\code{unique\_ptr<int>}), O, X (베이스 클래스 포인터)
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 6: Strategy 패턴}
+% ============================================================
+
+\begin{conceptbox}[title={Strategy 패턴}]
+\begin{itemize}[nosep]
+\item 알고리즘(전략)을 객체로 캡슐화 → 런타임에 교체 가능
+\item \code{Exporter} 인터페이스 + \code{JsonExporter} / \code{CsvExporter}
+\item \code{std::ostream\&} 추상화 → \code{cout}, 파일, 문자열 스트림 모두 OK
+\item Factory + Strategy 결합: \code{createExporter()} 팩토리 함수
+\end{itemize}
+\end{conceptbox}
+
+\begin{lstlisting}[style=cpp,title={Exporter 인터페이스 + Factory}]
+class Exporter {
+public:
+    virtual ~Exporter() = default;
+    virtual void dump(const std::map<std::string, std::string>& data,
+                      std::ostream& out) const = 0;
+};
+
+std::unique_ptr<Exporter> createExporter(const std::string& fmt) {
+    if (fmt == "json") return std::make_unique<JsonExporter>();
+    if (fmt == "csv")  return std::make_unique<CsvExporter>();
+    return nullptr;
+}
+\end{lstlisting}
+
+\begin{quizbox}[title={Q6-1: Exporter 인터페이스}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class Exporter {
+public:
+    _______ ~Exporter() = default;
+    _______ void dump(
+        const std::map<std::string, std::string>& data,
+        std::_______& out) _____ = 0;
+};
+\end{lstlisting}
+\textbf{정답}: virtual, virtual, ostream, const
+\end{quizbox}
+
+\begin{quizbox}[title={Q6-2: createExporter}]
+\begin{lstlisting}[style=cpp,numbers=none]
+std::__________<Exporter>
+createExporter(const std::string& fmt) {
+    if (fmt == "json")
+        return std::___________<JsonExporter>();
+    if (fmt == "csv")
+        return std::___________<CsvExporter>();
+    return _______;
+}
+\end{lstlisting}
+\textbf{정답}: unique\_ptr, make\_unique, make\_unique, nullptr
+\end{quizbox}
+
+\begin{quizbox}[title={Q6-3: ExportCommand}]
+\begin{lstlisting}[style=cpp,numbers=none]
+class ExportCommand : public _______ {
+    std::string format_;
+public:
+    ________ ExportCommand(const std::string& fmt);
+    void execute(KVStore& store) ________;
+};
+
+void ExportCommand::execute(KVStore& store) {
+    auto exp = _______________(format_);
+    if (!exp) {
+        std::cerr << "Unknown format" << std::endl;
+        return;
+    }
+    exp->____(store.all(), std::cout);
+}
+\end{lstlisting}
+\textbf{정답}: Command, explicit, override, createExporter, dump
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 7: 에러 처리}
+% ============================================================
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{상황} & \textbf{처리} \\
+\midrule
+인자 부족 & \code{return nullptr} + usage 출력 \\
+알 수 없는 명령 & \code{std::cerr << "Unknown: " << cmd} \\
+파일 열기 실패 & \code{throw std::runtime\_error("message")} \\
+키 없음 & \code{return std::nullopt} 또는 \code{bool} 반환 \\
+const 원칙 & 바꾸지 않는 것은 전부 \code{const} \\
+\bottomrule
+\end{tabularx}
+
+\begin{quizbox}[title={Q7-1: 에러 처리 빈칸}]
+\begin{enumerate}[nosep]
+\item 인자 부족: \code{return \_\_\_\_\_\_\_}
+\item 알 수 없는 명령: \code{std::\_\_\_\_ << "Unknown" << ...}
+\item 파일 열기 실패: \code{throw std::\_\_\_\_\_\_\_\_\_\_\_\_("...")}
+\item 키 없음: \code{return std::\_\_\_\_\_\_\_}
+\end{enumerate}
+\textbf{정답}: nullptr, cerr, runtime\_error, nullopt
+\end{quizbox}
+
+\begin{quizbox}[title={Q7-2: const 판단}]
+\code{const}가 붙어야 하면 O, 아니면 X:
+\begin{enumerate}[nosep]
+\item \code{save()} --- data\_를 읽기만 함 (O/X)
+\item \code{set()} --- data\_를 수정함 (O/X)
+\item \code{count()} --- 크기만 반환 (O/X)
+\item \code{load()} --- data\_에 데이터 넣음 (O/X)
+\item \code{execute(KVStore\&)} --- store를 수정 가능 (O/X)
+\end{enumerate}
+\textbf{정답}: O, X, O, X, X
+\end{quizbox}
+
+
+% ============================================================
+\section{Ch 8: 테스트}
+% ============================================================
+
+\begin{lstlisting}[style=shell,title={test.sh 구조}]
+#!/bin/bash
+PASS=0; FAIL=0
+assert_eq() {
+    if [ "$1" = "$2" ]; then ((PASS++))
+    else ((FAIL++)); echo "FAIL: $3"; echo "  expected: $2"; echo "  got: $1"
+    fi
+}
+rm -f kvstore.dat                                  # 상태 초기화
+OUT=$(./kvstore set name alice 2>&1)               # 실행 + stderr 캡처
+assert_eq "$OUT" "OK" "set name alice"             # 기대값 비교
+echo "Results: $PASS passed, $FAIL failed"
+\end{lstlisting}
+
+\begin{quizbox}[title={Q8-1: test.sh}]
+\begin{lstlisting}[style=shell,numbers=none]
+assert_eq() {
+    if [ "$1" ____ "$2" ]; then
+        ((_____++))
+    else
+        ((_____++)); echo "FAIL: ____"
+    fi
+}
+____ -f kvstore.dat
+OUT=$(./kvstore set city seoul _______)
+assert_eq "$OUT" "OK" "set city seoul"
+\end{lstlisting}
+\textbf{정답}: =, PASS, FAIL, \$3, rm, 2>\&1
+\end{quizbox}
+
+\begin{quizbox}[title={Q8-2: 테스트 코드 작성}]
+\begin{lstlisting}[style=shell,numbers=none]
+# set 후 get
+./kvstore set lang cpp
+OUT=$(./kvstore ___ lang 2>&1)
+assert_eq "$OUT" "___" "get lang"
+
+# 없는 키
+OUT=$(./kvstore get nokey 2>&1)
+assert_eq "$OUT" "Error: key not found: _____" "get missing"
+
+# count
+OUT=$(./kvstore _____ 2>&1)
+\end{lstlisting}
+\textbf{정답}: get, cpp, nokey, count
+\end{quizbox}
+
+
+% ============================================================
+\section{흔한 함정}
+% ============================================================
+
+\begin{warningbox}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{함정} & \textbf{증상 → 해결} \\
+\midrule
+Dangling Reference & 로컬 변수 참조 반환 → crash. \textbf{값으로 반환} \\
+Object Slicing & 자식을 부모 값으로 복사 → 잘림. \textbf{\code{unique\_ptr} 사용} \\
+초기화 순서 & 멤버는 \textbf{선언 순서}대로 초기화 (리스트 순서 아님) \\
+Implicit Conversion & 인자 1개 생성자에 \code{explicit} 누락. \textbf{\code{explicit} 필수} \\
+Virtual 소멸자 누락 & 자식 소멸자 미호출. \textbf{\code{virtual \~{}Base() = default}} \\
+\bottomrule
+\end{tabularx}
+\end{warningbox}
+
+\begin{quizbox}[title={Q: 함정 진단}]
+각 코드의 문제점을 쓰세요:
+
+\textbf{1.}
+\begin{lstlisting}[style=cpp,numbers=none]
+std::string& getName() {
+    std::string name = "alice";
+    return name;     // ???
+}
+\end{lstlisting}
+
+\textbf{2.}
+\begin{lstlisting}[style=cpp,numbers=none]
+class Base { public: ~Base() {} };  // virtual 없음
+std::unique_ptr<Base> p = std::make_unique<Child>();
+\end{lstlisting}
+
+\textbf{3.}
+\begin{lstlisting}[style=cpp,numbers=none]
+void process(Command cmd) { cmd.execute(store); }   // 값으로 받음
+\end{lstlisting}
+
+\textbf{정답}:
+1. Dangling reference → 값으로 반환 (\code{std::string getName()})
+2. Virtual 소멸자 누락 → \code{virtual \~{}Base() = default;}
+3. Object slicing → \code{Command\&} 또는 \code{unique\_ptr<Command>}
+\end{quizbox}
+
+
+% ============================================================
+\section{패턴 요약표}
+% ============================================================
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+\textbf{패턴} & \textbf{kvstore 적용} & \textbf{한 줄 요약} \\
+\midrule
+RAII & ifstream/ofstream & 생성자=획득, 소멸자=해제 \\
+Command & Set/Get/Delete/List/Count & 동작을 객체로 캡슐화 \\
+Factory & parseCommand, createExporter & 생성 로직 분리 \\
+Strategy & JsonExporter, CsvExporter & 알고리즘 런타임 교체 \\
+Virtual I/F & Command, Exporter base & 추상 인터페이스 + 다형성 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{quizbox}[title={Q: 패턴 매칭}]
+연결하세요:
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+A. RAII & \rule{2cm}{0.4pt} 동작을 객체로 캡슐화 \\
+B. Command & \rule{2cm}{0.4pt} 생성 로직 분리 \\
+C. Factory & \rule{2cm}{0.4pt} 알고리즘 런타임 교체 \\
+D. Strategy & \rule{2cm}{0.4pt} 자원 자동 관리 \\
+\end{tabularx}
+
+\textbf{정답}: A--자원 자동 관리, B--동작을 객체로 캡슐화, C--생성 로직 분리, D--알고리즘 런타임 교체
+\end{quizbox}
+
+
+% ============================================================
+\section{종합 O/X 20문}
+% ============================================================
+
+\begin{quizbox}[title={최종 점검}]
+\begin{enumerate}[nosep]
+\item RAII에서 자원 해제는 프로그래머가 수동으로 한다 (O/X)
+\item \code{std::map}의 키는 항상 정렬되어 있다 (O/X)
+\item \code{const T\&}는 복사본을 만든다 (O/X)
+\item \code{explicit}은 인자 2개 생성자에도 필요하다 (O/X)
+\item \code{ifstream}은 스코프를 벗어나면 파일을 자동으로 닫는다 (O/X)
+\item \code{std::optional<T>}의 기본 상태는 값이 있는 상태다 (O/X)
+\item 순수 가상 함수가 있는 클래스는 인스턴스를 만들 수 있다 (O/X)
+\item \code{override}를 빼도 컴파일은 된다 (O/X)
+\item \code{unique\_ptr}은 복사할 수 있다 (O/X)
+\item \code{make\_unique}는 \code{new}를 직접 쓰는 것보다 안전하다 (O/X)
+\item Factory 반환 타입은 구체 클래스여야 한다 (O/X)
+\item Strategy 패턴은 알고리즘을 런타임에 교체한다 (O/X)
+\item \code{std::ostream\&}으로 cout과 파일 스트림 모두 받을 수 있다 (O/X)
+\item Command 패턴에서 모든 커맨드는 같은 인터페이스를 구현한다 (O/X)
+\item 가상 소멸자 없이 \code{delete base\_ptr}하면 안전하다 (O/X)
+\item \code{auto [k, v] = pair;}는 C++17 기능이다 (O/X)
+\item \code{nullptr}은 \code{0}과 타입이 동일하다 (O/X)
+\item 멤버 변수는 초기화 리스트 순서대로 초기화된다 (O/X)
+\item \code{std::cerr}은 표준 출력 스트림이다 (O/X)
+\item \code{const} 멤버함수 안에서 멤버 변수를 수정할 수 있다 (O/X)
+\end{enumerate}
+
+\textbf{정답}: X, O, X, X, O, X, X, O, X, O, X, O, O, O, X, O, X, X(선언 순서), X(표준 에러), X
+\end{quizbox}
+
+\end{document}
