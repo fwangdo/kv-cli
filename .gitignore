@@ -12,6 +12,7 @@ build/
 
 # PDF (compiled output)
 *.pdf
+!study/book.pdf
 
 # OS
 .DS_Store

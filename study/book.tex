@@ -1,0 +1,984 @@
+% ============================================================
+%  CMake Mastery — From Single Binary to Real-World Build Graphs
+%  Compile: cd study && xelatex book.tex && xelatex book.tex
+% ============================================================
+\documentclass[11pt,a4paper]{book}
+
+% --- Fonts & Korean ---
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont{AppleGothic}
+\setCJKmonofont{AppleGothic}
+\setmainfont{Palatino}
+\setmonofont{Menlo}[Scale=0.85]
+
+% --- Layout ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Packages ---
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+
+% --- Colors ---
+\definecolor{codebg}{HTML}{F7F6F2}
+\definecolor{codeframe}{HTML}{C8C8C8}
+\definecolor{keyword}{HTML}{0B57D0}
+\definecolor{string}{HTML}{A31515}
+\definecolor{comment}{HTML}{2E7D32}
+\definecolor{type}{HTML}{1565C0}
+\definecolor{boxblue}{HTML}{1565C0}
+\definecolor{boxgreen}{HTML}{2E7D32}
+\definecolor{boxorange}{HTML}{E65100}
+\definecolor{boxpurple}{HTML}{6A1B9A}
+\definecolor{quizbg}{HTML}{FFF8E1}
+\definecolor{summarybg}{HTML}{E3F2FD}
+\definecolor{checkbg}{HTML}{E8F5E9}
+
+% --- Code listings ---
+\lstset{
+  basicstyle=\small\ttfamily,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  breakatwhitespace=false,
+  tabsize=2,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  aboveskip=10pt,
+  belowskip=10pt,
+  xleftmargin=15pt,
+  framexleftmargin=15pt,
+  columns=flexible,
+  keepspaces=true,
+}
+
+\lstdefinestyle{cmake}{
+  language={},
+  keywordstyle=\color{keyword}\bfseries,
+  morekeywords={
+    cmake_minimum_required,project,add_executable,add_library,target_link_libraries,
+    target_include_directories,target_compile_features,target_compile_definitions,
+    target_compile_options,target_sources,target_link_options,target_link_directories,
+    find_package,include,if,else,endif,set,option,message,install,export,include_guard,
+    add_subdirectory,enable_testing,add_test,set_property,set_target_properties,
+    configure_file,file,list,foreach,endforeach,function,endfunction,macro,endmacro,
+    PUBLIC,PRIVATE,INTERFACE,REQUIRED,CONFIG,VERSION,LANGUAGES
+  },
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  morecomment=[l]{\#},
+}
+
+\lstdefinestyle{cpp}{
+  language=C++,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  morekeywords={override,final,nullptr,constexpr,noexcept,auto,decltype,static_assert,
+                unique_ptr,shared_ptr,make_unique,make_shared,optional,string_view},
+  emph={std,string,vector,map,cout,cerr,endl,optional,unique_ptr},
+  emphstyle=\color{type},
+}
+
+\lstdefinestyle{shell}{
+  language=bash,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+}
+
+% --- Boxes ---
+\newtcolorbox{summarybox}[1][]{
+  colback=summarybg,
+  colframe=boxblue,
+  fonttitle=\bfseries,
+  title={배운 것 정리},
+  breakable,
+  #1
+}
+
+\newtcolorbox{quizbox}[1][]{
+  colback=quizbg,
+  colframe=boxorange,
+  fonttitle=\bfseries,
+  title={Quiz},
+  breakable,
+  #1
+}
+
+\newtcolorbox{conceptbox}[1][]{
+  colback=white,
+  colframe=boxgreen,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newtcolorbox{checklistbox}[1][]{
+  colback=checkbg,
+  colframe=boxgreen,
+  fonttitle=\bfseries,
+  title={실전 체크리스트},
+  breakable,
+  #1
+}
+
+\newtcolorbox{warningbox}[1][]{
+  colback=white,
+  colframe=boxorange,
+  fonttitle=\bfseries,
+  title={주의},
+  breakable,
+  #1
+}
+
+\newtcolorbox{pythonbox}[1][]{
+  colback=white,
+  colframe=boxpurple,
+  fonttitle=\bfseries,
+  title={Python 개발자 관점},
+  breakable,
+  #1
+}
+
+% --- Header/Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\leftmark}
+\fancyhead[RO]{\rightmark}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14pt}
+
+% --- Chapter title format ---
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries}
+  {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+% --- Hyperref ---
+\hypersetup{
+  colorlinks=true,
+  linkcolor=boxblue,
+  urlcolor=boxblue,
+  pdftitle={CMake Mastery},
+  pdfauthor={Codex},
+}
+
+% --- Convenience macros ---
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\file}[1]{\texttt{#1}}
+\newcommand{\term}[1]{\textbf{#1}}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{2.5cm}
+{\Huge\bfseries CMake Mastery\par}
+\vspace{0.5cm}
+{\LARGE From Single Binary to Real-World Build Graphs\par}
+\vspace{1.4cm}
+{\Large\itshape Python/C++ 개발자를 위한 실전 빌드 시스템 책\par}
+\vspace{2.5cm}
+{\large 단일 실행 파일, 라이브러리 분리, 외부 패키지, 테스트, 설치,\\
+Presets, Toolchain, LLVM/MLIR 연동까지 한 흐름으로 정리한 학습서\par}
+\vfill
+{\large 2026\par}
+\end{titlepage}
+
+\frontmatter
+\tableofcontents
+
+\mainmatter
+
+\chapter{왜 CMake를 마스터해야 하는가}
+
+당신의 목표는 단순히 \code{cmake -B build -S .}를 외우는 것이 아닙니다. \term{프로젝트 구조를 설계하고}, \term{타겟 단위로 의존성을 관리하고}, \term{LLVM/MLIR 같은 큰 생태계와 연결해도 버티는 빌드 감각}을 갖추는 것이 핵심입니다.
+
+\begin{conceptbox}[title={이 책의 목표}]
+\begin{enumerate}[nosep]
+\item 작은 C++ 프로젝트를 스스로 빌드할 수 있다.
+\item 헤더 경로, 컴파일 옵션, 링크 의존성을 타겟 기준으로 설계할 수 있다.
+\item 외부 패키지와 테스트, 설치, 재사용 가능한 패키지 구성을 이해한다.
+\item LLVM/MLIR처럼 크고 복잡한 생태계에서 CMake 파일을 읽고 고칠 수 있다.
+\end{enumerate}
+\end{conceptbox}
+
+\begin{pythonbox}
+Python에서 익숙한 것은 \code{pip install}, \code{pyproject.toml}, 가상환경, 테스트 러너입니다. C++에서는 그 역할이 여러 층으로 나뉩니다. 컴파일러, 링커, 빌드 디렉토리, 패키지 설정, 설치 경로를 명시적으로 다뤄야 합니다. CMake는 이 복잡성을 정리해 주는 메타 빌드 시스템입니다.
+\end{pythonbox}
+
+\section{CMake가 실제로 하는 일}
+
+CMake는 컴파일러가 아닙니다. \code{ninja}, \code{make}, Xcode, Visual Studio 같은 \term{실제 빌드 도구용 설정 파일}을 생성합니다. 즉, CMake의 핵심 일은 ``프로젝트의 빌드 그래프를 선언''하는 것입니다.
+
+\begin{lstlisting}[style=shell,numbers=none,title={기본 흐름}]
+cmake -S . -B build          # configure: 빌드 그래프 생성
+cmake --build build          # build: 실제 컴파일/링크
+ctest --test-dir build       # test: 테스트 실행
+cmake --install build        # install: 산출물 배치
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item configure 단계와 build 단계는 다르다.
+\item CMake를 읽을 때는 ``무슨 파일을 컴파일하나''보다 ``무슨 타겟을 정의하나''를 먼저 봐야 한다.
+\item 프로젝트가 커질수록 파일보다 \term{타겟 간 관계}를 이해하는 것이 더 중요하다.
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+\textbf{Q1.} CMake가 직접 하는 일과 하지 않는 일을 구분해 보자.
+\begin{enumerate}
+\item \code{g++} 실행 자체
+\item 타겟 사이 의존성 그래프 모델링
+\item Ninja 파일 생성
+\item 소스 코드를 최적화해서 더 빠르게 만드는 것
+\end{enumerate}
+\textbf{정답}: 2, 3만 CMake의 역할. 1은 생성된 빌드 시스템이 수행하고, 4는 컴파일러/링커의 역할이다.
+\end{quizbox}
+
+\chapter{가장 작은 CMake 프로젝트}
+
+\section{최소 구성}
+
+\begin{lstlisting}[style=cmake,title={\file{CMakeLists.txt} 최소 버전}]
+cmake_minimum_required(VERSION 3.20)
+project(kv_cli LANGUAGES CXX)
+
+add_executable(kv
+  src/main.cpp
+)
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={\file{src/main.cpp}}]
+#include <iostream>
+
+int main() {
+  std::cout << "kv-cli" << std::endl;
+  return 0;
+}
+\end{lstlisting}
+
+\section{자주 쓰는 기본 설정}
+
+\begin{lstlisting}[style=cmake]
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+\end{lstlisting}
+
+\begin{conceptbox}[title={의미}]
+\begin{itemize}[nosep]
+\item \code{CMAKE\_CXX\_STANDARD 20}: C++20 사용 의도
+\item \code{REQUIRED ON}: 지원 안 하면 에러
+\item \code{EXTENSIONS OFF}: \code{gnu++20} 대신 \code{c++20} 선호
+\end{itemize}
+\end{conceptbox}
+
+\begin{warningbox}
+실전에서는 전역 변수보다 \code{target\_compile\_features()}가 더 안전하다. 전역 설정은 서브프로젝트와 섞일 때 충돌이 생기기 쉽다.
+\end{warningbox}
+
+\section{빌드 디렉토리를 분리하는 이유}
+
+\begin{lstlisting}[style=shell,numbers=none]
+cmake -S . -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+\end{lstlisting}
+
+소스 디렉토리와 빌드 디렉토리를 분리하면, 설정 조합을 여러 개 유지할 수 있고 산출물이 저장소를 오염시키지 않습니다.
+
+\begin{quizbox}
+\textbf{Q2.} 아래 중 권장되는 흐름은?
+\begin{enumerate}[label=\Alph*.]
+\item 프로젝트 루트에서 \code{make}
+\item 소스 루트에 \code{CMakeCache.txt}와 객체 파일을 섞어서 생성
+\item 별도 \code{build/} 디렉토리에서 configure/build/test/install 수행
+\end{enumerate}
+\textbf{정답}: C
+\end{quizbox}
+
+\chapter{타겟 중심 사고}
+
+\section{파일이 아니라 타겟을 본다}
+
+CMake 초보는 보통 ``이 파일을 어떻게 추가하지?''를 먼저 생각합니다. 그러나 유지보수 가능한 CMake는 ``이 타겟은 어떤 API를 노출하고, 무엇에 링크되고, 어떤 include path와 compile definition을 소비자에게 전파하는가?''로 설계합니다.
+
+\begin{lstlisting}[style=cmake,title={좋은 방향의 CMake}]
+add_library(kv_core
+  src/store.cpp
+  src/command.cpp
+)
+
+target_include_directories(kv_core
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_compile_features(kv_core PUBLIC cxx_std_20)
+
+add_executable(kv_cli
+  src/main.cpp
+)
+
+target_link_libraries(kv_cli PRIVATE kv_core)
+\end{lstlisting}
+
+\section{PUBLIC, PRIVATE, INTERFACE}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{키워드} & \textbf{의미} \\
+\midrule
+\code{PRIVATE} & 현재 타겟에서만 사용. 소비자에게 전파되지 않음 \\
+\code{PUBLIC} & 현재 타겟도 사용하고 소비자에게도 전파 \\
+\code{INTERFACE} & 현재 타겟 자체는 안 쓰고 소비자에게만 전파 \\
+\bottomrule
+\end{tabularx}
+
+\begin{lstlisting}[style=cmake,title={전파 예시}]
+target_include_directories(kv_core
+  PUBLIC include
+  PRIVATE src
+)
+
+target_link_libraries(kv_cli
+  PRIVATE kv_core
+)
+\end{lstlisting}
+
+위 예시에서 \code{kv\_cli}는 \code{kv\_core}를 링크하면서 \code{include} 경로는 자동으로 받지만, \code{src} 경로는 받지 않습니다.
+
+\begin{pythonbox}
+이 개념은 Python 패키지의 공개 API와 내부 구현 경계를 나누는 것과 비슷합니다. \code{PUBLIC}은 라이브러리 사용자에게 노출되는 계약이고, \code{PRIVATE}은 내부 구현 세부사항입니다.
+\end{pythonbox}
+
+\section{header-only 라이브러리}
+
+\begin{lstlisting}[style=cmake]
+add_library(kv_flags INTERFACE)
+target_compile_definitions(kv_flags INTERFACE KV_ENABLE_LOG=1)
+target_include_directories(kv_flags INTERFACE include)
+\end{lstlisting}
+
+\code{INTERFACE} 라이브러리는 소스 파일이 없고, ``사용 방법''만 배포합니다. 컴파일 옵션, include 디렉토리, 컴파일 정의를 묶는 데 유용합니다.
+
+\begin{quizbox}
+\textbf{Q3.} \code{kv\_core}의 헤더에서 \code{fmt::format}이 반환 타입과 인자 타입에 등장한다. \code{fmt}는 \code{PUBLIC}, \code{PRIVATE}, \code{INTERFACE} 중 무엇이어야 할까?
+
+\textbf{정답}: 보통 \code{PUBLIC}. 헤더를 소비하는 쪽도 그 의존성을 알아야 하기 때문이다.
+\end{quizbox}
+
+\chapter{프로젝트 구조를 어떻게 쪼개는가}
+
+\section{권장 디렉토리 구조}
+
+\begin{lstlisting}[style=shell,numbers=none]
+project-root/
+  CMakeLists.txt
+  cmake/
+    warnings.cmake
+    sanitizers.cmake
+  include/
+    kv/store.h
+  src/
+    store.cpp
+    main.cpp
+  tests/
+    store_test.cpp
+  third_party/
+\end{lstlisting}
+
+\section{루트와 서브디렉토리 책임 분리}
+
+\begin{lstlisting}[style=cmake,title={루트 CMakeLists.txt}]
+cmake_minimum_required(VERSION 3.20)
+project(kv_cli VERSION 0.1.0 LANGUAGES CXX)
+
+option(KV_BUILD_TESTS "Build tests" ON)
+
+add_subdirectory(src)
+
+if(KV_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
+\end{lstlisting}
+
+\begin{lstlisting}[style=cmake,title={src/CMakeLists.txt}]
+add_library(kv_core
+  store.cpp
+)
+
+target_include_directories(kv_core
+  PUBLIC ${PROJECT_SOURCE_DIR}/include
+)
+
+add_executable(kv_cli main.cpp)
+target_link_libraries(kv_cli PRIVATE kv_core)
+\end{lstlisting}
+
+\begin{warningbox}
+\code{CMAKE\_SOURCE\_DIR}와 \code{PROJECT\_SOURCE\_DIR}를 무분별하게 섞지 마십시오. 서브프로젝트로 포함될 가능성이 있으면 \code{CMAKE\_CURRENT\_SOURCE\_DIR}, \code{PROJECT\_SOURCE\_DIR}, \code{PROJECT\_BINARY\_DIR}처럼 문맥에 맞는 변수를 써야 합니다.
+\end{warningbox}
+
+\section{언제 add\_subdirectory를 쓰나}
+
+\begin{itemize}[nosep]
+\item 우리 프로젝트의 일부인 내부 모듈: \code{add\_subdirectory}
+\item 설치된 외부 패키지 찾기: \code{find\_package}
+\item Git submodule이나 번들된 외부 라이브러리 직접 포함: 경우에 따라 \code{add\_subdirectory}, 단 정책 충돌 주의
+\end{itemize}
+
+\begin{quizbox}
+\textbf{Q4.} 루트에서 \code{include\_directories()}를 한 번 호출해서 모든 하위 타겟에 전역으로 뿌리는 방식이 왜 위험한가?
+
+\textbf{정답}: 타겟 경계가 사라져서 어떤 헤더가 어디서 오는지 추적이 어려워지고, 외부 서브프로젝트와 충돌하기 쉽다. 타겟 단위 전파가 더 읽기 쉽고 재사용 가능하다.
+\end{quizbox}
+
+\chapter{컴파일 옵션과 정의를 다루는 법}
+
+\section{전역 옵션보다 타겟 옵션}
+
+\begin{lstlisting}[style=cmake,title={권장 패턴}]
+target_compile_features(kv_core PUBLIC cxx_std_20)
+
+target_compile_options(kv_core PRIVATE
+  -Wall
+  -Wextra
+  -Wpedantic
+)
+
+target_compile_definitions(kv_core PRIVATE
+  KV_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+)
+\end{lstlisting}
+
+\section{빌드 타입과 generator expression}
+
+\begin{lstlisting}[style=cmake]
+target_compile_definitions(kv_core PRIVATE
+  $<$<CONFIG:Debug>:KV_ENABLE_ASSERTS=1>
+  $<$<CONFIG:Release>:KV_FAST_PATH=1>
+)
+\end{lstlisting}
+
+\code{\$<...>}는 generator expression입니다. configure 시점이 아니라 generate/build 시점에 해석됩니다.
+
+\begin{conceptbox}[title={Multi-config vs Single-config}]
+\begin{itemize}[nosep]
+\item Ninja, Makefiles: 보통 single-config. \code{CMAKE\_BUILD\_TYPE} 사용.
+\item Visual Studio, Xcode, Ninja Multi-Config: 여러 구성을 동시에 가짐.
+\item 그래서 실전에서는 \code{if(CMAKE\_BUILD\_TYPE STREQUAL ...)}보다 generator expression이 더 이식성 있다.
+\end{itemize}
+\end{conceptbox}
+
+\section{경고 플래그 모듈화}
+
+\begin{lstlisting}[style=cmake,title={cmake/warnings.cmake}]
+add_library(project_warnings INTERFACE)
+
+target_compile_options(project_warnings INTERFACE
+  $<$<CXX_COMPILER_ID:Clang,AppleClang,GNU>:-Wall;-Wextra;-Wpedantic>
+  $<$<CXX_COMPILER_ID:MSVC>:/W4>
+)
+\end{lstlisting}
+
+\begin{lstlisting}[style=cmake]
+target_link_libraries(kv_core PRIVATE project_warnings)
+\end{lstlisting}
+
+\begin{quizbox}
+\textbf{Q5.} \code{add\_compile\_options(-Wall)}와 \code{target\_compile\_options(kv\_core PRIVATE -Wall)} 중 후자가 더 나은 이유는?
+
+\textbf{정답}: 어떤 타겟이 어떤 규칙을 가지는지 국소적으로 드러나고, 외부 서브프로젝트나 특정 타겟에 원치 않는 옵션 전파를 막을 수 있기 때문이다.
+\end{quizbox}
+
+\chapter{링크, 라이브러리, 그리고 왜 자꾸 undefined reference가 나는가}
+
+\section{컴파일과 링크는 다른 단계다}
+
+\begin{itemize}[nosep]
+\item 컴파일: 각 \file{.cpp}를 객체 파일로 변환
+\item 링크: 객체 파일과 라이브러리를 합쳐 최종 실행 파일 생성
+\item \code{undefined reference}: 헤더는 보이는데 구현 심볼이 링크에 안 들어왔다는 뜻
+\end{itemize}
+
+\section{정적 라이브러리와 공유 라이브러리}
+
+\begin{lstlisting}[style=cmake]
+add_library(kv_core STATIC
+  src/store.cpp
+)
+
+add_library(kv_plugin SHARED
+  src/plugin.cpp
+)
+\end{lstlisting}
+
+\begin{conceptbox}[title={실전 감각}]
+\begin{itemize}[nosep]
+\item 앱 내부 모듈은 대부분 \code{STATIC} 또는 기본 \code{add\_library}로 충분하다.
+\item 플러그인 시스템, ABI 노출, 동적 교체가 필요할 때만 \code{SHARED}를 신중하게 검토한다.
+\item 초반에는 ``링크 그래프를 명확하게'' 만드는 것이 동적 로딩보다 더 중요하다.
+\end{itemize}
+\end{conceptbox}
+
+\section{의존성 전파 예시}
+
+\begin{lstlisting}[style=cmake]
+add_library(kv_storage src/store.cpp)
+add_library(kv_commands src/command.cpp)
+
+target_link_libraries(kv_commands PUBLIC kv_storage)
+
+add_executable(kv_cli src/main.cpp)
+target_link_libraries(kv_cli PRIVATE kv_commands)
+\end{lstlisting}
+
+위 경우 \code{kv\_cli}는 \code{kv\_storage}를 직접 쓰지 않아도, \code{kv\_commands}의 \code{PUBLIC} 링크 전파 덕분에 함께 링크됩니다.
+
+\begin{warningbox}
+링크가 우연히 통과한다고 해서 설계가 좋은 것은 아닙니다. 헤더에 노출된 의존성은 \code{PUBLIC}, 구현에만 필요한 의존성은 \code{PRIVATE}로 정리해야 나중에 리팩터링이 쉬워집니다.
+\end{warningbox}
+
+\begin{quizbox}
+\textbf{Q6.} \code{undefined reference to KVStore::set(...)} 에러가 났다. 가능한 원인을 두 가지 써 보라.
+
+\textbf{정답 예시}: \code{store.cpp}가 타겟 소스 목록에서 빠졌거나, \code{kv\_core} 라이브러리를 최종 실행 파일에 링크하지 않았다.
+\end{quizbox}
+
+\chapter{외부 패키지를 찾고 연결하기}
+
+\section{find\_package의 두 세계}
+
+\begin{enumerate}[nosep]
+\item \term{Module mode}: CMake가 제공하는 \file{FindXXX.cmake}를 찾는다.
+\item \term{Config mode}: 패키지가 설치한 \file{XXXConfig.cmake}를 찾는다.
+\end{enumerate}
+
+\begin{lstlisting}[style=cmake]
+find_package(fmt REQUIRED CONFIG)
+find_package(spdlog REQUIRED CONFIG)
+\end{lstlisting}
+
+현대 CMake에서는 가능하면 Config mode와 imported target을 쓰는 것이 좋습니다.
+
+\section{Imported target을 써야 하는 이유}
+
+\begin{lstlisting}[style=cmake]
+target_link_libraries(kv_core
+  PUBLIC
+    fmt::fmt
+    spdlog::spdlog
+)
+\end{lstlisting}
+
+이 방식은 include path, compile definition, 필요한 링크 플래그를 패키지 작성자가 한 번 묶어서 제공합니다.
+
+\begin{warningbox}
+\code{include\_directories(/usr/local/include)}와 \code{link\_directories(/usr/local/lib)}를 직접 쓰는 방식은 현대 CMake에서 거의 항상 열세다. 패키지가 제공하는 imported target이 있으면 그걸 우선 사용하라.
+\end{warningbox}
+
+\section{패키지를 못 찾을 때 보는 것}
+
+\begin{itemize}[nosep]
+\item \code{CMAKE\_PREFIX\_PATH}
+\item 패키지별 \code{<Pkg>\_DIR}
+\item 설치 위치 안의 \file{lib/cmake/<Pkg>} 또는 유사 경로
+\item 아키텍처 불일치 여부
+\end{itemize}
+
+\begin{lstlisting}[style=shell,numbers=none,title={예시}]
+cmake -S . -B build \
+  -DCMAKE_PREFIX_PATH=/opt/homebrew \
+  -Dfmt_DIR=/opt/homebrew/lib/cmake/fmt
+\end{lstlisting}
+
+\begin{quizbox}
+\textbf{Q7.} \code{find\_package(MLIR REQUIRED CONFIG)}가 실패했다. 가장 먼저 확인할 것은?
+
+\textbf{정답}: MLIR 설치 경로 아래의 \file{MLIRConfig.cmake} 위치와, 그 위치를 가리키는 \code{MLIR\_DIR} 또는 \code{CMAKE\_PREFIX\_PATH} 설정.
+\end{quizbox}
+
+\chapter{테스트, install, package로 이어지는 흐름}
+
+\section{CTest 연결}
+
+\begin{lstlisting}[style=cmake]
+include(CTest)
+
+if(BUILD_TESTING)
+  add_executable(store_test tests/store_test.cpp)
+  target_link_libraries(store_test PRIVATE kv_core)
+  add_test(NAME store_test COMMAND store_test)
+endif()
+\end{lstlisting}
+
+\begin{lstlisting}[style=shell,numbers=none]
+ctest --test-dir build --output-on-failure
+\end{lstlisting}
+
+\section{install 규칙}
+
+\begin{lstlisting}[style=cmake]
+install(TARGETS kv_core kv_cli
+  EXPORT kvTargets
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
+
+install(DIRECTORY include/ DESTINATION include)
+\end{lstlisting}
+
+\section{재사용 가능한 패키지로 내보내기}
+
+\begin{lstlisting}[style=cmake]
+install(EXPORT kvTargets
+  NAMESPACE kv::
+  DESTINATION lib/cmake/kv
+)
+\end{lstlisting}
+
+이 단계까지 가면 다른 프로젝트에서 \code{find\_package(kv CONFIG REQUIRED)} 후 \code{kv::kv\_core} 같은 imported target으로 소비할 수 있습니다.
+
+\begin{pythonbox}
+이 감각은 Python 패키지를 wheel로 배포해서 다른 프로젝트가 import 하는 흐름과 닮았습니다. 차이는 C++은 ABI, 헤더, 링크 옵션까지 함께 전달해야 한다는 점입니다.
+\end{pythonbox}
+
+\begin{quizbox}
+\textbf{Q8.} 왜 \code{install()} 없이도 로컬 빌드는 되지만, 다른 프로젝트에서 재사용하기는 어려울까?
+
+\textbf{정답}: 설치 규칙이 없으면 헤더, 라이브러리, export target 메타데이터를 일관된 위치와 형식으로 제공하지 못해 외부 프로젝트가 안정적으로 소비할 수 없다.
+\end{quizbox}
+
+\chapter{configure 단계에서 파일을 생성하는 법}
+
+\section{configure\_file}
+
+\begin{lstlisting}[style=cmake]
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/generated/config.h
+  @ONLY
+)
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={config.h.in}]
+#pragma once
+
+#define KV_VERSION "@PROJECT_VERSION@"
+#define KV_ENABLE_CACHE @KV_ENABLE_CACHE@
+\end{lstlisting}
+
+\code{configure\_file()}는 configure 시점 치환입니다. 빌드할 때마다 실행되는 스크립트가 아니라, 설정이 바뀔 때 다시 생성되는 파일입니다.
+
+\section{file(GENERATE)와의 차이}
+
+\begin{itemize}[nosep]
+\item \code{configure\_file}: configure 시점 치환
+\item \code{file(GENERATE)}: generate 시점, configuration별 파일 생성에 유리
+\item \code{add\_custom\_command}: build 시점에 실제 작업 수행
+\end{itemize}
+
+\begin{warningbox}
+configure 단계에서 해야 할 일과 build 단계에서 해야 할 일을 혼동하면, 소스를 바꿨는데 파일이 안 갱신되거나 매번 불필요하게 재생성되는 문제가 생긴다.
+\end{warningbox}
+
+\begin{quizbox}
+\textbf{Q9.} protobuf 컴파일, TableGen 생성, codegen 스크립트 실행은 보통 \code{configure\_file()}보다 무엇에 가깝나?
+
+\textbf{정답}: \code{add\_custom\_command()} 혹은 해당 생태계가 제공하는 전용 매크로. 실제 빌드 산출물 생성 단계이기 때문이다.
+\end{quizbox}
+
+\chapter{Presets와 Toolchain으로 팀 개발 수준을 올리기}
+
+\section{CMakePresets.json}
+
+\begin{lstlisting}[style=cmake,title={개념 예시, 실제 파일은 JSON}]
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "dev",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "KV_BUILD_TESTS": "ON"
+      }
+    }
+  ]
+}
+\end{lstlisting}
+
+Presets는 팀 전체가 같은 configure 인자를 재현하도록 도와줍니다. README에 긴 명령을 적는 대신, \code{cmake --preset dev}로 고정할 수 있습니다.
+
+\section{Toolchain 파일}
+
+\begin{lstlisting}[style=cmake]
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+\end{lstlisting}
+
+Toolchain 파일은 cross-compiling, 특정 SDK, sysroot, 패키지 매니저 통합에 유용합니다.
+
+\begin{checklistbox}
+\begin{itemize}[nosep]
+\item 팀에 빌드 명령이 길어지면 Presets를 도입한다.
+\item 플랫폼이나 아키텍처 차이를 숨겨야 하면 Toolchain 파일을 고려한다.
+\item 문서보다 재현 가능한 설정 파일을 우선한다.
+\end{itemize}
+\end{checklistbox}
+
+\begin{quizbox}
+\textbf{Q10.} 개인 환경별로 \code{CMAKE\_PREFIX\_PATH}가 다르고, 팀원이 매번 README의 긴 명령을 복붙하고 있다. 무엇을 도입하면 좋은가?
+
+\textbf{정답}: 기본적으로 \code{CMakePresets.json}. 플랫폼/컴파일러 자체까지 고정해야 하면 필요에 따라 toolchain 파일도 함께 사용.
+\end{quizbox}
+
+\chapter{LLVM/MLIR 프로젝트를 읽는 눈}
+
+\section{왜 별도 장이 필요한가}
+
+당신은 단순한 toy project보다 한 단계 더 가려 하고 있습니다. LLVM/MLIR 기반 프로젝트는 CMake 파일이 길고 매크로가 많으며, 링크 의존성이 빽빽합니다. 여기서 중요한 것은 문법 암기보다 \term{패턴 인식}입니다.
+
+\section{핵심 패턴}
+
+\begin{lstlisting}[style=cmake,title={전형적인 MLIR 설정}]
+find_package(MLIR REQUIRED CONFIG)
+find_package(LLVM REQUIRED CONFIG)
+
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+
+include(TableGen)
+include(AddLLVM)
+include(AddMLIR)
+\end{lstlisting}
+
+\begin{lstlisting}[style=cmake]
+if(NOT LLVM_ENABLE_RTTI)
+  add_compile_options(-fno-rtti)
+endif()
+\end{lstlisting}
+
+\begin{conceptbox}[title={여기서 읽어야 할 포인트}]
+\begin{enumerate}[nosep]
+\item 패키지 설정을 어디서 찾는가
+\item 생태계 전용 매크로를 어떻게 로드하는가
+\item 프로젝트 컴파일 옵션이 상위 생태계와 어떤 제약을 공유하는가
+\item 어떤 라이브러리가 어떤 dialect/pass/transform 계층을 담당하는가
+\end{enumerate}
+\end{conceptbox}
+
+\section{라이브러리 계층을 읽는 법}
+
+\begin{lstlisting}[style=cmake]
+add_library(GaweeDialect
+  lib/Gawee/GaweeDialect.cpp
+)
+
+target_link_libraries(GaweeDialect
+  PUBLIC
+    MLIRIR
+    MLIRSupport
+)
+
+add_library(GaweeConversion
+  lib/Conversion/GaweeToLinalg.cpp
+)
+
+target_link_libraries(GaweeConversion
+  PUBLIC
+    GaweeDialect
+  PRIVATE
+    MLIRLinalgDialect
+    MLIRTransforms
+)
+\end{lstlisting}
+
+여기서 \code{GaweeConversion}의 공개 API가 \code{GaweeDialect} 타입을 노출한다면 \code{PUBLIC}이 맞고, 내부 lowering 구현만 \code{MLIRLinalgDialect}를 쓰면 \code{PRIVATE}가 맞습니다.
+
+\section{빈출 문제}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{증상} & \textbf{보통 원인} \\
+\midrule
+\code{typeinfo for mlir::Pass} 관련 링크 에러 & RTTI 설정 불일치 \\
+\code{Could not find MLIRConfig.cmake} & \code{MLIR\_DIR} 또는 prefix 경로 미설정 \\
+\code{file not found} 헤더 에러 & include 경로 또는 generated header 경로 누락 \\
+\code{undefined reference} 패스 생성 함수 & 관련 라이브러리 미링크 \\
+\bottomrule
+\end{tabularx}
+
+\begin{quizbox}
+\textbf{Q11.} LLVM이 RTTI 없이 빌드되었는데 우리 프로젝트는 RTTI를 켠 상태다. 가장 가능성 높은 결과는?
+
+\textbf{정답}: 컴파일은 되더라도 링크 단계에서 \code{typeinfo} 관련 에러가 날 수 있다. 상위 생태계와 설정을 맞춰야 한다.
+\end{quizbox}
+
+\chapter{디버깅과 안티패턴}
+
+\section{문제가 생겼을 때 순서}
+
+\begin{enumerate}[nosep]
+\item configure 에러인가, build 에러인가, test/install 에러인가 구분한다.
+\item 문제가 난 타겟이 무엇인지 본다.
+\item 그 타겟의 소스, include path, compile definition, link dependency를 확인한다.
+\item 전역 변수와 매크로가 흐름을 숨기고 있지 않은지 본다.
+\end{enumerate}
+
+\section{유용한 명령}
+
+\begin{lstlisting}[style=shell,numbers=none]
+cmake -S . -B build --trace-expand
+cmake --build build --verbose
+cmake --graphviz=graph.dot -S . -B build
+ctest --test-dir build --output-on-failure
+\end{lstlisting}
+
+\section{피해야 할 안티패턴}
+
+\begin{itemize}[nosep]
+\item 루트에서 \code{include\_directories()}, \code{link\_libraries()}를 전역 살포
+\item 패키지 대신 절대 경로 하드코딩
+\item \code{file(GLOB ...)}로 소스를 자동 수집해서 변경 추적 불투명하게 만들기
+\item 옵션과 매크로를 함수처럼 섞어 타겟 경계를 흐리기
+\item ``일단 돌아가니까'' PUBLIC/PRIVATE를 대충 두기
+\end{itemize}
+
+\begin{warningbox}
+\code{file(GLOB)}는 데모에는 편하지만, 팀 프로젝트에서는 새 파일 추가가 configure 재실행과 엮여 예측 가능성을 떨어뜨린다. 명시적 소스 목록이 더 유지보수에 강하다.
+\end{warningbox}
+
+\begin{quizbox}
+\textbf{Q12.} CMake 디버깅에서 가장 먼저 해야 할 질문은 ``어느 파일에서 문제가 났나?''가 아니라 무엇인가?
+
+\textbf{정답}: ``어느 타겟의 어떤 속성에서 문제가 났나?'' 파일보다 타겟이 빌드 그래프의 기본 단위이기 때문이다.
+\end{quizbox}
+
+\chapter{당장 실전에 적용할 로드맵}
+
+\section{1단계: 작은 CLI 프로젝트}
+
+\begin{itemize}[nosep]
+\item \code{add\_executable} 하나로 시작
+\item \code{build/} 분리
+\item \code{target\_compile\_features}, \code{target\_include\_directories}, \code{target\_link\_libraries}를 익힌다
+\end{itemize}
+
+\section{2단계: 라이브러리 분리}
+
+\begin{itemize}[nosep]
+\item \code{kv\_core}, \code{kv\_cli}로 분리
+\item PUBLIC/PRIVATE를 의식적으로 설정
+\item 테스트 타겟 추가
+\end{itemize}
+
+\section{3단계: 외부 패키지와 설치}
+
+\begin{itemize}[nosep]
+\item \code{find\_package}와 imported target 사용
+\item \code{install()}과 export target 구성
+\item Presets로 팀 환경 고정
+\end{itemize}
+
+\section{4단계: 대형 생태계 읽기}
+
+\begin{itemize}[nosep]
+\item LLVM/MLIR CMake를 읽을 때 타겟 그래프를 먼저 본다
+\item 생태계 전용 매크로가 실제로 어떤 타겟을 만드는지 추적한다
+\item 에러를 보면 ``헤더 경로'', ``심볼 정의'', ``상위 설정 불일치'' 중 무엇인지 분류한다
+\end{itemize}
+
+\begin{summarybox}
+당신의 실제 목표는 ``CMake 문법을 많이 아는 사람''이 아니라, \term{복잡한 C++ 프로젝트를 겁먹지 않고 구조화하고 디버깅하는 사람}이 되는 것입니다. mini-kvstore 같은 작은 CLI에서 시작해, 라이브러리 분리, 테스트, 패키지, LLVM/MLIR 연동까지 자연스럽게 올라가면 됩니다.
+\end{summarybox}
+
+\chapter{Final Quiz}
+
+\begin{quizbox}[title={종합 문제 1}]
+다음 상황을 읽고 올바른 설계를 설명하라.
+
+\begin{itemize}[nosep]
+\item \code{kv\_core} 라이브러리가 공개 헤더에서 \code{fmt::format} 결과를 반환한다.
+\item \code{kv\_cli} 실행 파일이 \code{kv\_core}를 사용한다.
+\item 테스트 타겟 \code{store\_test}도 \code{kv\_core}를 사용한다.
+\end{itemize}
+
+\textbf{해설}: \code{kv\_core}는 \code{fmt::fmt}를 \code{PUBLIC}으로 링크해야 할 가능성이 높다. \code{kv\_cli}와 \code{store\_test}는 \code{kv\_core}만 링크하면 전파받을 수 있다.
+\end{quizbox}
+
+\begin{quizbox}[title={종합 문제 2}]
+다음 중 대형 프로젝트에서 가장 먼저 리팩터링해야 할 냄새는?
+\begin{enumerate}[label=\Alph*.]
+\item 타겟별 \code{target\_link\_libraries} 사용
+\item 전역 \code{include\_directories()} 남발
+\item \code{find\_package(fmt CONFIG REQUIRED)} 사용
+\item \code{install(EXPORT ...)} 제공
+\end{enumerate}
+\textbf{정답}: B
+\end{quizbox}
+
+\begin{quizbox}[title={종합 문제 3}]
+\code{gawee-opt} 링크 중 \code{undefined reference to mlir::linalg::GenericOp::create}가 난다. 가장 그럴듯한 원인은?
+
+\textbf{정답}: 관련 dialect/transform 라이브러리가 \code{target\_link\_libraries}에 빠졌을 가능성이 높다. 헤더 include만으로는 링크 심볼이 해결되지 않는다.
+\end{quizbox}
+
+\appendix
+
+\chapter{암기보다 중요한 체크포인트}
+
+\begin{checklistbox}
+\begin{enumerate}
+\item 모든 것은 타겟 중심으로 읽고 쓴다.
+\item 전역 설정보다 타겟 속성을 우선한다.
+\item 패키지는 경로 하드코딩보다 imported target을 우선한다.
+\item configure/build/install/test의 단계를 섞지 않는다.
+\item 대형 프로젝트에서는 상위 생태계의 제약을 먼저 확인한다.
+\end{enumerate}
+\end{checklistbox}
+
+\chapter{빠른 명령 치트시트}
+
+\begin{lstlisting}[style=shell,numbers=none]
+# Configure
+cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+# Build
+cmake --build build/dev
+
+# Run tests
+ctest --test-dir build/dev --output-on-failure
+
+# Install
+cmake --install build/dev --prefix ./stage
+
+# Trace and debug
+cmake -S . -B build/dev --trace-expand
+cmake --build build/dev --verbose
+\end{lstlisting}
+
+\end{document}
