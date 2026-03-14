@@ -564,6 +564,98 @@ install(TARGETS kv_core kv_cli
 
 이 레벨은 \term{검색 없이도 대충 뼈대를 칠 수 있어야} 합니다. 특히 \code{PUBLIC}/\code{PRIVATE}/\code{INTERFACE}의 감각은 암기가 아니라 반사적으로 나와야 합니다.
 
+\begin{conceptbox}[title={레벨 1 명령은 예제까지 같이 기억}]
+아래 예제는 ``지금 바로 빈 프로젝트에 손으로 칠 수 있어야 하는 최소 패턴''입니다. 완벽히 토씨까지 외우라는 뜻은 아니고, \term{명령이 하는 역할과 대표적인 쓰임}이 바로 떠올라야 한다는 뜻입니다.
+\end{conceptbox}
+
+\subsection*{\code{cmake\_minimum\_required}}
+
+\begin{lstlisting}[style=cmake]
+cmake_minimum_required(VERSION 3.20)
+\end{lstlisting}
+
+\textbf{의미}: 이 프로젝트는 최소 CMake 3.20을 요구한다. 너무 낮은 버전이면 configure 자체를 막는다.
+
+\subsection*{\code{project}}
+
+\begin{lstlisting}[style=cmake]
+project(kv_cli VERSION 0.1.0 LANGUAGES CXX)
+\end{lstlisting}
+
+\textbf{의미}: 프로젝트 이름을 \code{kv\_cli}로 두고, 버전은 \code{0.1.0}, 활성 언어는 C++만 사용한다.
+
+\subsection*{\code{add\_executable}}
+
+\begin{lstlisting}[style=cmake]
+add_executable(kv_cli
+  src/main.cpp
+)
+\end{lstlisting}
+
+\textbf{의미}: \code{kv\_cli}라는 실행 파일 타겟을 만들고, 진입점 소스로 \file{src/main.cpp}를 사용한다.
+
+\subsection*{\code{add\_library}}
+
+\begin{lstlisting}[style=cmake]
+add_library(kv_core
+  src/store.cpp
+  src/command.cpp
+)
+\end{lstlisting}
+
+\textbf{의미}: 재사용 가능한 \code{kv\_core} 라이브러리 타겟을 만들고, 핵심 구현을 그 안으로 모은다.
+
+\subsection*{\code{target\_link\_libraries}}
+
+\begin{lstlisting}[style=cmake]
+target_link_libraries(kv_cli PRIVATE kv_core)
+\end{lstlisting}
+
+\textbf{의미}: \code{kv\_cli}는 \code{kv\_core}를 링크해서 사용한다. 실행 파일 기준으로는 거의 항상 \code{PRIVATE}로 시작하면 된다.
+
+\subsection*{\code{target\_include\_directories}}
+
+\begin{lstlisting}[style=cmake]
+target_include_directories(kv_core
+  PUBLIC include
+)
+\end{lstlisting}
+
+\textbf{의미}: \code{kv\_core}의 공개 헤더는 \file{include/} 아래에 있고, 이 라이브러리를 쓰는 소비자도 그 경로를 받아야 한다.
+
+\subsection*{\code{target\_compile\_features}}
+
+\begin{lstlisting}[style=cmake]
+target_compile_features(kv_core PUBLIC cxx_std_20)
+\end{lstlisting}
+
+\textbf{의미}: \code{kv\_core}는 C++20 기능을 요구하며, 이 라이브러리의 공개 인터페이스를 소비하는 쪽도 그 요구를 이어받을 수 있다.
+
+\subsection*{\code{find\_package}}
+
+\begin{lstlisting}[style=cmake]
+find_package(fmt REQUIRED CONFIG)
+\end{lstlisting}
+
+\textbf{의미}: fmt 패키지를 Config mode로 찾고, 없으면 조용히 넘어가지 말고 configure를 실패시킨다.
+
+\subsection*{\code{option}}
+
+\begin{lstlisting}[style=cmake]
+option(KV_BUILD_TESTS "Build tests" ON)
+\end{lstlisting}
+
+\textbf{의미}: 사용자가 \code{-DKV\_BUILD\_TESTS=OFF}처럼 켜고 끌 수 있는 불리언 옵션을 만든다.
+
+\subsection*{\code{add\_subdirectory}}
+
+\begin{lstlisting}[style=cmake]
+add_subdirectory(src)
+add_subdirectory(tests)
+\end{lstlisting}
+
+\textbf{의미}: \file{src/CMakeLists.txt}, \file{tests/CMakeLists.txt}를 현재 빌드 그래프에 포함시켜 하위 타겟 정의를 읽어온다.
+
 \subsection*{레벨 2: 이름은 기억하고 필요할 때 문서 보면 되는 것}
 
 \begin{itemize}[nosep]
