@@ -317,6 +317,320 @@ cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
 \textbf{정답}: C
 \end{quizbox}
 
+\chapter{예약어, 명령, 옵션을 어떻게 읽어야 하는가}
+
+\section{먼저 정리: CMake에 진짜 ``예약어''가 있는가}
+
+엄밀하게 말하면 CMake는 C++처럼 강한 의미의 예약어 목록이 있는 언어가 아닙니다. 실전에서 우리가 ``예약어''라고 부르는 것은 보통 세 층입니다.
+
+\begin{enumerate}[nosep]
+\item \term{명령(command)}: \code{project()}, \code{add\_library()}, \code{find\_package()}처럼 호출하는 것
+\item \term{인자/키워드(keyword-like argument)}: \code{PUBLIC}, \code{PRIVATE}, \code{REQUIRED}, \code{CONFIG}, \code{VERSION}처럼 명령 안에서 의미를 바꾸는 것
+\item \term{변수(variable)}: \code{CMAKE\_CXX\_STANDARD}, \code{PROJECT\_SOURCE\_DIR}, \code{BUILD\_TESTING}처럼 상태를 들고 있는 것
+\end{enumerate}
+
+그래서 CMake 파일을 읽을 때는 ``이 단어가 문법 예약어인가?''보다 ``이 단어가 명령인지, 옵션인지, 변수인지''를 먼저 분류해야 합니다.
+
+\begin{conceptbox}[title={CMake 읽기의 기본 질문}]
+\begin{enumerate}[nosep]
+\item 지금 보는 줄이 \term{무슨 타겟을 만들거나 수정하는가}?
+\item 이 줄은 \term{configure 시점}에 평가되나, build/generate 시점에 반영되나?
+\item 이 설정은 \term{현재 타겟만} 바꾸나, \term{소비자에게 전파}되나?
+\item 이 값은 \term{전역 변수}인가, \term{타겟 속성}인가?
+\end{enumerate}
+\end{conceptbox}
+
+\section{현재 예제 코드 한 줄씩 해석}
+
+\begin{lstlisting}[style=cmake,title={가장 작은 예제 다시 보기}]
+cmake_minimum_required(VERSION 3.20)
+project(kv_cli LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_executable(kv
+  src/main.cpp
+)
+\end{lstlisting}
+
+\begin{longtable}{@{}p{0.28\textwidth}p{0.68\textwidth}@{}}
+\toprule
+\textbf{줄} & \textbf{의미} \\
+\midrule
+\code{cmake\_minimum\_required(VERSION 3.20)} & 이 프로젝트는 최소 CMake 3.20 문법과 정책을 기준으로 작성되었다는 선언이다. 너무 낮은 버전의 CMake로 열면 바로 실패시킨다. 동시에 여러 CMake 정책(policy)의 기본 동작도 이 버전에 맞춰진다. \\
+\code{project(kv\_cli LANGUAGES CXX)} & 프로젝트 이름을 \code{kv\_cli}로 정하고, C++ 언어를 활성화한다. 이 줄이 지나야 C++ 컴파일러 탐색과 관련 변수 초기화가 제대로 이뤄진다. \\
+\code{set(CMAKE\_CXX\_STANDARD 20)} & 이후 생성되는 C++ 타겟의 기본 언어 표준을 C++20으로 요청한다. ``반드시 이걸 써라''라기보다는 기본 의도를 지정하는 전역 변수에 가깝다. \\
+\code{set(CMAKE\_CXX\_STANDARD\_REQUIRED ON)} & 컴파일러가 C++20을 제대로 지원하지 않으면 다른 하위 표준으로 조용히 내려가지 말고 실패하라는 뜻이다. \\
+\code{set(CMAKE\_CXX\_EXTENSIONS OFF)} & \code{gnu++20} 같은 컴파일러 확장 모드보다 표준 모드 \code{c++20}를 선호한다. 이식성을 높이는 데 유리하다. \\
+\code{add\_executable(kv src/main.cpp)} & \code{kv}라는 실행 파일 타겟을 만들고, 그 소스로 \file{src/main.cpp}를 연결한다. 여기서 핵심은 파일 나열이 아니라 ``kv라는 타겟이 존재하게 된다''는 점이다. \\
+\bottomrule
+\end{longtable}
+
+\begin{pythonbox}
+Python에서 \code{pyproject.toml}은 빌드 메타데이터와 패키지 설정을 담습니다. CMake의 각 줄은 그보다 더 낮은 레벨입니다. 컴파일러 활성화, 언어 표준, 실제 링크 타겟 생성 같은 단계가 명시적으로 드러납니다.
+\end{pythonbox}
+
+\section{자주 보는 명령을 상세히 이해하기}
+
+\subsection*{\code{cmake\_minimum\_required(VERSION ...)}}
+
+\begin{itemize}[nosep]
+\item \code{VERSION}은 명령의 필수 키워드다.
+\item 단순 버전 체크 이상으로, CMake 정책의 기준선을 잡는 역할이 중요하다.
+\item 실전에서는 프로젝트가 실제로 테스트한 최소 버전을 적어야 한다. ``대충 최신''을 적으면 오래된 환경에서 괜히 깨지고, 너무 낮게 적으면 실제로는 지원하지 않는 기능을 쓰면서 거짓말하게 된다.
+\end{itemize}
+
+\begin{warningbox}
+\code{cmake\_minimum\_required()}는 거의 항상 루트 \file{CMakeLists.txt} 최상단에 둔다. CMake 정책이 뒤늦게 바뀌면 문서 해석과 동작이 꼬일 수 있다.
+\end{warningbox}
+
+\subsection*{\code{project(...)}} 
+
+\begin{lstlisting}[style=cmake]
+project(kv_cli VERSION 0.1.0 LANGUAGES CXX)
+\end{lstlisting}
+
+\begin{longtable}{@{}p{0.24\textwidth}p{0.72\textwidth}@{}}
+\toprule
+\textbf{항목} & \textbf{의미} \\
+\midrule
+\code{kv\_cli} & 프로젝트 이름. \code{PROJECT\_NAME}, \code{CMAKE\_PROJECT\_NAME} 같은 변수에 반영된다. \\
+\code{VERSION 0.1.0} & 프로젝트 버전. 설치 패키지, configure 파일, 문서 메타데이터에 재사용하기 좋다. \\
+\code{LANGUAGES CXX} & C++만 활성화. 필요하면 \code{C}, \code{CUDA}, \code{OBJCXX} 등을 추가할 수 있다. 안 쓰는 언어를 켜지 않는 것이 configure 시간을 줄이고 의도를 선명하게 한다. \\
+\bottomrule
+\end{longtable}
+
+\textbf{기억 포인트}: \code{project()}는 단순 이름표가 아니라 \term{언어 활성화 트리거}라고 기억하면 된다.
+
+\subsection*{\code{set(...)}} 
+
+\code{set()}은 가장 남용되기 쉬운 명령입니다. 문제는 너무 범용이라서, 값을 넣는 순간 ``지역 변수'', ``캐시 변수'', ``전역 관습 변수'', ``하위 디렉토리에 전파되는 설정''이 뒤섞이기 쉽다는 점입니다.
+
+\begin{lstlisting}[style=cmake]
+set(CMAKE_CXX_STANDARD 20)
+set(KV_ENABLE_LOGGING ON)
+set(MY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data")
+\end{lstlisting}
+
+\begin{itemize}[nosep]
+\item 첫 줄은 CMake가 특별히 읽는 \term{관습 변수}를 세팅하는 예다.
+\item 둘째 줄은 우리가 정의한 일반 변수다.
+\item 셋째 줄은 문자열 결합이다. \code{"\$\{...\}"}는 변수 치환.
+\end{itemize}
+
+\begin{warningbox}
+\code{set()}로 모든 문제를 해결하려는 습관은 좋지 않다. 사용자가 끄고 켤 옵션이면 \code{option()}, 타겟 컴파일 정의면 \code{target\_compile\_definitions()}, include path면 \code{target\_include\_directories()}가 더 적절하다.
+\end{warningbox}
+
+\subsection*{\code{option(...)}} 
+
+\begin{lstlisting}[style=cmake]
+option(KV_BUILD_TESTS "Build tests" ON)
+\end{lstlisting}
+
+\begin{itemize}[nosep]
+\item 첫 번째 인자: 캐시 변수 이름
+\item 두 번째 인자: 사용자에게 보이는 설명
+\item 세 번째 인자: 기본값
+\end{itemize}
+
+이 명령은 ``사용자가 configure 시점에 바꿀 수 있는 불리언 스위치''를 만든다. \code{cmake -DKV\_BUILD\_TESTS=OFF ...}처럼 덮어쓸 수 있다.
+
+\subsection*{\code{add\_executable(...)} / \code{add\_library(...)}}
+
+이 둘은 CMake의 중심입니다. 프로젝트를 읽을 때 가장 먼저 찾아야 하는 줄입니다.
+
+\begin{lstlisting}[style=cmake]
+add_library(kv_core src/store.cpp)
+add_executable(kv_cli src/main.cpp)
+\end{lstlisting}
+
+\begin{itemize}[nosep]
+\item 이 줄이 있어야 타겟이 생긴다.
+\item 이후의 \code{target\_*} 명령은 거의 모두 이 타겟을 수정한다.
+\item 소스 목록은 ``이 타겟을 구성하는 재료''일 뿐이다. 진짜 주인공은 타겟 이름이다.
+\end{itemize}
+
+\subsection*{\code{target\_include\_directories(...)}}
+
+\begin{lstlisting}[style=cmake]
+target_include_directories(kv_core
+  PUBLIC include
+  PRIVATE src
+)
+\end{lstlisting}
+
+\begin{longtable}{@{}p{0.2\textwidth}p{0.76\textwidth}@{}}
+\toprule
+\textbf{옵션} & \textbf{의미} \\
+\midrule
+\code{PUBLIC} & 현재 타겟도 쓰고, 이 타겟을 링크하는 소비자도 필요하다. 보통 공개 헤더 위치. \\
+\code{PRIVATE} & 현재 타겟의 구현에서만 필요하다. 소비자에게는 전달하지 않는다. \\
+\code{INTERFACE} & 현재 타겟 자체는 안 쓰고, 소비자에게만 전달한다. header-only 라이브러리나 usage requirement 묶음에 많다. \\
+\bottomrule
+\end{longtable}
+
+\textbf{현재 코드의 의미}: \code{kv\_core}의 공개 헤더는 \file{include/} 아래에 있고, 내부 구현은 \file{src/}에 있는 비공개 헤더를 쓸 수도 있다는 뜻입니다.
+
+\subsection*{\code{target\_link\_libraries(...)}}
+
+\begin{lstlisting}[style=cmake]
+target_link_libraries(kv_cli PRIVATE kv_core)
+\end{lstlisting}
+
+이 한 줄의 의미는 세 겹입니다.
+
+\begin{enumerate}[nosep]
+\item 링크 단계에서 \code{kv\_core}를 \code{kv\_cli}에 연결한다.
+\item \code{kv\_core}가 들고 있는 usage requirement를 \code{PRIVATE}/\code{PUBLIC} 규칙에 따라 전달받는다.
+\item ``이 실행 파일은 이 라이브러리에 의존한다''는 빌드 그래프 관계를 명시한다.
+\end{enumerate}
+
+\textbf{여기서 \code{PRIVATE}의 뜻}: \code{kv\_cli}를 누가 또 링크해 가는 상황은 거의 없으므로, 보통 실행 파일 링크는 \code{PRIVATE}라고 기억하면 된다.
+
+\subsection*{\code{find\_package(...)}}
+
+\begin{lstlisting}[style=cmake]
+find_package(fmt REQUIRED CONFIG)
+\end{lstlisting}
+
+\begin{longtable}{@{}p{0.2\textwidth}p{0.76\textwidth}@{}}
+\toprule
+\textbf{옵션} & \textbf{의미} \\
+\midrule
+\code{fmt} & 찾고 싶은 패키지 이름 \\
+\code{REQUIRED} & 못 찾으면 경고가 아니라 configure 실패 \\
+\code{CONFIG} & 패키지가 제공하는 \file{fmtConfig.cmake} 계열 파일을 우선 찾겠다는 의도 \\
+\bottomrule
+\end{longtable}
+
+\textbf{현재 코드의 의미}: ``fmt가 설치되어 있다고 가정하고, 그 패키지가 제공하는 현대식 imported target 메타데이터를 읽어와라. 없으면 조용히 넘어가지 말고 바로 실패해라'' 입니다.
+
+\subsection*{\code{install(...)}}
+
+\begin{lstlisting}[style=cmake]
+install(TARGETS kv_core kv_cli
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
+\end{lstlisting}
+
+\begin{itemize}[nosep]
+\item \code{TARGETS}: 어떤 타겟을 설치할지
+\item \code{RUNTIME DESTINATION}: 실행 파일이 갈 위치
+\item \code{LIBRARY DESTINATION}: 공유 라이브러리가 갈 위치
+\item \code{ARCHIVE DESTINATION}: 정적 라이브러리, import library가 갈 위치
+\end{itemize}
+
+이건 단순 복사가 아니라 ``이 프로젝트를 다른 곳에서 소비 가능한 산출물로 정리하라''는 선언입니다.
+
+\section{옵션을 읽을 때 흔히 놓치는 포인트}
+
+\begin{conceptbox}[title={옵션은 명령마다 의미가 다르다}]
+\code{VERSION}, \code{REQUIRED}, \code{CONFIG}, \code{PUBLIC}, \code{PRIVATE} 같은 단어는 영어 단어라서 감으로 읽기 쉽지만, \term{어느 명령 안에 들어갔는지}에 따라 정확한 의미가 달라집니다. 예를 들어 \code{VERSION}은 \code{cmake\_minimum\_required()}에서는 최소 버전 문법이고, \code{project()}에서는 프로젝트 버전 메타데이터입니다.
+\end{conceptbox}
+
+\begin{longtable}{@{}p{0.24\textwidth}p{0.32\textwidth}p{0.4\textwidth}@{}}
+\toprule
+\textbf{단어} & \textbf{주로 나오는 곳} & \textbf{실전 해석} \\
+\midrule
+\code{VERSION} & \code{cmake\_minimum\_required}, \code{project} & 최소 도구 버전인지, 프로젝트 자체 버전인지 문맥으로 구분 \\
+\code{REQUIRED} & \code{find\_package} & 없으면 진행하지 말고 실패 \\
+\code{CONFIG} & \code{find\_package} & Config mode를 우선 사용 \\
+\code{PUBLIC} & \code{target\_*\_*} 계열 & 현재 타겟과 소비자 모두에 전파 \\
+\code{PRIVATE} & \code{target\_*\_*} 계열 & 현재 타겟에만 적용 \\
+\code{INTERFACE} & \code{target\_*\_*} 계열 & 소비자에게만 적용 \\
+\bottomrule
+\end{longtable}
+
+\section{무엇을 어디까지 외워야 하는가}
+
+\subsection*{레벨 1: 바로 손으로 쓸 수 있어야 하는 것}
+
+\begin{itemize}[nosep]
+\item \code{cmake\_minimum\_required}
+\item \code{project}
+\item \code{add\_executable}, \code{add\_library}
+\item \code{target\_link\_libraries}
+\item \code{target\_include\_directories}
+\item \code{target\_compile\_features}
+\item \code{find\_package}
+\item \code{option}
+\item \code{add\_subdirectory}
+\end{itemize}
+
+이 레벨은 \term{검색 없이도 대충 뼈대를 칠 수 있어야} 합니다. 특히 \code{PUBLIC}/\code{PRIVATE}/\code{INTERFACE}의 감각은 암기가 아니라 반사적으로 나와야 합니다.
+
+\subsection*{레벨 2: 이름은 기억하고 필요할 때 문서 보면 되는 것}
+
+\begin{itemize}[nosep]
+\item \code{install}
+\item \code{configure\_file}
+\item \code{add\_test}, \code{include(CTest)}
+\item \code{set\_target\_properties}
+\item generator expression 문법
+\item export/package 관련 세부 명령
+\end{itemize}
+
+이 레벨은 ``무슨 명령이 있는지''와 ``어떤 문제에 쓰는지''까지만 기억하면 충분합니다. 세부 옵션 순서까지 암기할 필요는 없습니다.
+
+\subsection*{레벨 3: 검색해서 써도 되는 것}
+
+\begin{itemize}[nosep]
+\item 복잡한 \code{install(EXPORT ...)} 조합
+\item \code{file(GENERATE)}의 세부 시맨틱
+\item Toolchain 파일 변수 세트
+\item CPack, package registry, 고급 policy
+\item LLVM/MLIR 전용 매크로 이름과 세부 인자
+\end{itemize}
+
+이건 자주 안 쓰므로 외우기보다 \term{존재를 알고 문서에서 정확히 확인하는 것}이 낫습니다.
+
+\begin{checklistbox}
+\begin{itemize}[nosep]
+\item 암기 대상 1순위는 명령 이름보다 \term{타겟 중심 사고}다.
+\item 2순위는 \code{PUBLIC}/\code{PRIVATE}/\code{INTERFACE}다.
+\item 3순위는 configure/build/install/test의 단계 구분이다.
+\item 나머지는 ``이 문제를 풀 때 무슨 명령을 찾아야 하는가''를 아는 정도면 충분하다.
+\end{itemize}
+\end{checklistbox}
+
+\section{현재 당신 수준에서 특히 기억해야 할 것}
+
+당신은 초보 입문자를 넘어서, 이미 C++ 프로젝트와 LLVM/MLIR 계열 CMake를 읽고 싶은 단계에 있습니다. 이 단계에서 중요한 건 문법 조각보다 다음 네 가지입니다.
+
+\begin{enumerate}[nosep]
+\item \term{타겟을 만든다}: \code{add\_library}, \code{add\_executable}
+\item \term{타겟을 수정한다}: \code{target\_link\_libraries}, \code{target\_include\_directories}, \code{target\_compile\_features}
+\item \term{외부 세계를 끌어온다}: \code{find\_package}, \code{add\_subdirectory}
+\item \term{사용자 제어와 산출물 배치를 만든다}: \code{option}, \code{install}, \code{add\_test}
+\end{enumerate}
+
+이 네 분류만 머릿속에 고정되어 있으면, 처음 보는 CMake 파일도 훨씬 빨리 읽힙니다.
+
+\begin{quizbox}
+\textbf{Q2-1.} 아래 줄을 한국어로 해석해 보라.
+\begin{lstlisting}[style=cmake,numbers=none]
+target_link_libraries(kv_cli PRIVATE kv_core)
+\end{lstlisting}
+\textbf{정답}: \code{kv\_cli} 실행 파일은 \code{kv\_core} 라이브러리에 의존하며, 그 관계는 현재 타겟에만 적용된다.
+\end{quizbox}
+
+\begin{quizbox}
+\textbf{Q2-2.} \code{find\_package(fmt REQUIRED CONFIG)}에서 \code{REQUIRED}를 빼면 무엇이 달라지는가?
+
+\textbf{정답}: fmt를 못 찾았을 때 즉시 실패하지 않고, 이후 로직에서 조건 분기나 별도 처리를 할 여지가 생긴다. 단 대부분의 실전 프로젝트에서는 정말 필요한 패키지라면 \code{REQUIRED}를 두는 편이 더 명확하다.
+\end{quizbox}
+
+\begin{quizbox}
+\textbf{Q2-3.} 지금 당장 암기해야 할 우선순위를 쓰면?
+
+\textbf{정답}: 타겟 생성 명령, 타겟 수정 명령, \code{PUBLIC}/\code{PRIVATE}/\code{INTERFACE}, \code{find\_package}, configure/build/install/test 단계 구분.
+\end{quizbox}
+
 \chapter{타겟 중심 사고}
 
 \section{파일이 아니라 타겟을 본다}
