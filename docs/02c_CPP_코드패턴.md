@@ -3,6 +3,9 @@
 MLIR이 아닌 **일반 C++ 코드**에서 반복되는 구조를 정리한다.
 새 코드를 작성할 때 해당하는 패턴을 복사하고 수정하면 된다.
 
+설명에 집중하기 위해 `#include`, `std::` 네임스페이스, 주변 보일러플레이트는 일부 생략한다.
+다만 예제만 읽어도 흐름이 보이도록, 중요한 타입과 함수의 역할은 되도록 코드 안에 드러나게 적는다.
+
 ---
 
 ## 패턴 1: RAII — 자원을 생성자에서 잡고 소멸자에서 놓기
@@ -30,8 +33,9 @@ with open("data.txt") as f:
 
 // ② 메모리 — unique_ptr이 RAII
 {
+    MLIRContext *ctx = /* 이미 만들어진 컨텍스트 */;
     auto builder = std::make_unique<OpBuilder>(ctx);  // 생성자에서 new
-    builder->create(...);
+    builder->create</* 어떤 Op 타입 */>(/* 위치, 타입, 피연산자 등 */);
 }  // 소멸자에서 자동 delete
 
 // ③ 락 — lock_guard가 RAII
@@ -296,6 +300,12 @@ class JsonSerializer(Serializer):
 
 **C++에서는:**
 ```cpp
+using Data = std::unordered_map<std::string, std::string>;
+
+void writeFile(const std::vector<uint8_t> &bytes) {
+    // 예제에서는 파일 저장 로직을 생략
+}
+
 // ① 인터페이스 정의 — 순수 가상 함수 (= 0)
 class Serializer {
 public:
@@ -510,6 +520,9 @@ constexpr int f5 = factorial(5);  // 컴파일 타임에 120
 // ③ if constexpr — 컴파일 타임 분기 (코드 제거)
 template <typename T>
 void print(T val) {
+    // std::is_same_v<A, B> 는
+    // "A 타입과 B 타입이 완전히 같은가?"를 컴파일 타임에 검사한 bool 값
+    // 여기서는 T가 std::string이면 true, 아니면 false
     if constexpr (std::is_same_v<T, std::string>) {
         std::cout << "string: " << val;
     } else if constexpr (std::is_integral_v<T>) {
@@ -518,6 +531,16 @@ void print(T val) {
     // 해당 안 되는 분기는 아예 컴파일되지 않음
 }
 ```
+
+`std::is_same_v<T, std::string>` 를 처음 보면 함수처럼 보이지만, 실제로는
+"T와 std::string이 같은 타입인지"를 나타내는 컴파일 타임 상수입니다.
+
+- `print(std::string{"abc"})` 이면 `std::is_same_v<T, std::string>` 는 `true`
+- `print(42)` 이면 `false`
+- 그래서 문자열용 코드와 정수용 코드를 컴파일 단계에서 갈라낼 수 있음
+
+즉 Python의 `if isinstance(x, str):` 와 비슷한 목적이지만, C++에서는 런타임이 아니라
+컴파일 타임에 결정된다는 점이 핵심입니다.
 
 ---
 
@@ -533,7 +556,13 @@ assert len(FIELDS) == 3, "expected 3 fields"
 ```cpp
 // 컴파일 타임에 조건 체크 — 틀리면 컴파일 에러
 static_assert(sizeof(int) == 4, "int must be 4 bytes");
-static_assert(std::is_trivially_copyable_v<MyStruct>, "must be trivially copyable");
+
+struct PacketHeader {
+    uint32_t size;
+    uint16_t type;
+};
+static_assert(std::is_trivially_copyable_v<PacketHeader>,
+              "must be trivially copyable");
 
 // 템플릿에서 타입 제약
 template <typename T>
@@ -559,8 +588,23 @@ finally:
 **C++에서는:** (RAII 활용)
 
 ```cpp
+struct Resource {
+    int handle;
+};
+
+Resource *acquire();
+void release(Resource *r);
+void doWork(Resource *r);
+
 // ① 간단한 scope guard (C++에 표준은 없지만 자주 쓰는 패턴)
-auto cleanup = [&]() { release(resource); };
+void processSimple() {
+    Resource *resource = acquire();
+    auto cleanup = [&]() { release(resource); };
+
+    // 이 람다를 직접 호출해도 되지만,
+    // "스코프를 벗어날 때 자동 실행"은 아직 아님
+    // 자동 실행하려면 이 람다를 끝까지 들고 있다가 소멸 시점에 호출하는 객체가 필요하다
+}
 
 // ② 좀 더 정석적으로 — 작은 헬퍼 struct
 struct ScopeGuard {
@@ -569,10 +613,11 @@ struct ScopeGuard {
 };
 
 void process() {
-    auto resource = acquire();
+    Resource *resource = acquire();
+    bool error = false;
     ScopeGuard guard{[&]() { release(resource); }};
 
-    do_work(resource);       // 예외가 나도
+    doWork(resource);        // 예외가 나도
     if (error) return;       // 중간에 return해도
     // guard 소멸자에서 release 실행됨
 }
@@ -583,6 +628,110 @@ auto resource = std::unique_ptr<Resource, decltype(&release)>(
 );
 // 스코프 끝에서 자동으로 release(resource) 호출
 ```
+
+여기서 헷갈리기 쉬운 지점을 하나씩 보면:
+
+1. `struct ScopeGuard` 에서 `fn` 이 "정의되지 않은 것"처럼 보이는 이유
+
+`fn` 은 멤버 함수(function)가 아니라 멤버 변수(field)입니다.
+타입은 `std::function<void()>` 이고, "인자 없이 호출되는 함수 객체 하나를 저장하는 칸"입니다.
+
+```cpp
+struct ScopeGuard {
+    std::function<void()> fn;  // 함수 자체가 아니라, 호출 가능한 객체를 담는 변수
+    ~ScopeGuard() { fn(); }
+};
+```
+
+아래 코드에서 람다를 넣을 때 그 값이 `fn` 에 저장됩니다.
+
+```cpp
+ScopeGuard guard{[&]() { release(resource); }};
+```
+
+즉 이 코드는 대략 아래 의미입니다.
+
+```cpp
+ScopeGuard guard;
+guard.fn = [&]() { release(resource); };
+```
+
+그리고 블록이 끝나면 `guard` 가 소멸되고, 소멸자 `~ScopeGuard()` 안에서 `fn()` 이 실행됩니다.
+
+2. `decltype` 은 뭔가?
+
+`decltype(expr)` 는 "expr의 타입을 그대로 꺼내오는 문법"입니다.
+
+```cpp
+int x = 3;
+decltype(x) y = 10;  // y의 타입도 int
+```
+
+따라서:
+
+```cpp
+decltype(&release)
+```
+
+는 "`release` 라는 함수의 주소를 표현한 `&release` 의 타입"이라는 뜻입니다.
+즉 "release와 같은 형태의 함수 포인터 타입"을 자동으로 써 달라는 표현입니다.
+
+이 예제에서는 `release` 의 타입이 대략 이런 모양이라고 생각하면 됩니다.
+
+```cpp
+void release(Resource *r);
+```
+
+그래서 `decltype(&release)` 는 대략:
+
+```cpp
+void (*)(Resource *)
+```
+
+와 같은 함수 포인터 타입입니다.
+
+3. 왜 `&release` 가 자원을 해제하나?
+
+`&release` 가 직접 자원을 해제하는 것은 아닙니다.
+`&release` 는 그냥 `release` 함수의 주소, 즉 함수 포인터입니다.
+
+```cpp
+auto resource = std::unique_ptr<Resource, decltype(&release)>(
+    acquire(), &release
+);
+```
+
+이 코드의 의미는:
+
+- `acquire()` 로 자원을 얻고
+- 그 자원을 `unique_ptr` 이 들고 있고
+- 나중에 `unique_ptr` 이 소멸할 때
+- "삭제 함수로 `release` 를 써라"라고 등록하는 것
+
+즉 `&release` 는 "어떤 함수를 호출할지 알려주는 표지"이고,
+실제로 그 함수를 호출하는 주체는 `unique_ptr` 입니다.
+
+대략 개념적으로는 아래와 비슷합니다.
+
+```cpp
+struct UniqueLike {
+    Resource* ptr;
+    void (*deleter)(Resource*);
+
+    ~UniqueLike() {
+        if (ptr) deleter(ptr);  // 여기서 release(ptr) 호출
+    }
+};
+```
+
+그래서 `unique_ptr` 이 스코프를 벗어나면 내부적으로 `release(resource)` 가 호출됩니다.
+
+정리하면:
+
+- Scope Guard 패턴의 핵심은 "소멸자에서 정리 코드를 실행한다"
+- `fn` 은 그 정리 코드를 저장하는 변수
+- `decltype(&release)` 는 `release` 함수 포인터의 타입을 직접 안 쓰고 자동으로 얻는 문법
+- `&release` 는 함수 자체가 아니라 함수 주소이고, `unique_ptr` 이 그 주소를 나중에 호출함
 
 ---
 
@@ -671,8 +820,16 @@ public:
     void tearDown() {}
 };
 
+struct FakeDb {
+    void connect() {}
+    int query(const std::string &) { return 1; }
+    void disconnect() {}
+};
+
 class MyTest : public TestCase<MyTest> {
 public:
+    FakeDb db;
+
     void setUp() { db.connect(); }
     void runTest() { assert(db.query("SELECT 1") == 1); }
     void tearDown() { db.disconnect(); }

@@ -1,5 +1,5 @@
 % ============================================================
-%  CMake Mastery — From Single Binary to Real-World Build Graphs
+%  C++ and MLIR Fast Track
 %  Compile: cd study && xelatex book.tex && xelatex book.tex
 % ============================================================
 \documentclass[11pt,a4paper]{book}
@@ -178,28 +178,32 @@
   colorlinks=true,
   linkcolor=boxblue,
   urlcolor=boxblue,
-  pdftitle={CMake Mastery},
+  pdftitle={C++ and MLIR Fast Track},
   pdfauthor={Codex},
 }
 
 % --- Convenience macros ---
-\newcommand{\code}[1]{\texttt{#1}}
-\newcommand{\file}[1]{\texttt{#1}}
+\DeclareRobustCommand{\code}[1]{\texttt{\detokenize{#1}}}
+\DeclareRobustCommand{\file}[1]{\texttt{\detokenize{#1}}}
 \newcommand{\term}[1]{\textbf{#1}}
 
 \begin{document}
 
 \begin{titlepage}
 \centering
-\vspace*{2.5cm}
-{\Huge\bfseries CMake Mastery\par}
-\vspace{0.5cm}
-{\LARGE From Single Binary to Real-World Build Graphs\par}
+\vspace*{2.0cm}
+{\Huge\bfseries C++ and MLIR Fast Track\par}
+\vspace{0.6cm}
+{\LARGE C++ 기본 개념, 실전 패턴, MLIR 감각까지 빠르게 익히는 교재\par}
 \vspace{1.4cm}
-{\Large\itshape Python/C++ 개발자를 위한 실전 빌드 시스템 책\par}
-\vspace{2.5cm}
-{\large 단일 실행 파일, 라이브러리 분리, 외부 패키지, 테스트, 설치,\\
-Presets, Toolchain, LLVM/MLIR 연동까지 한 흐름으로 정리한 학습서\par}
+{\Large\itshape Python 개발자가 C++/MLIR에 빠르게 익숙해지기 위한 압축 학습서\par}
+\vspace{2.2cm}
+{\large 목표\par}
+\vspace{0.3cm}
+{\large 1. CMake와 빌드 흐름을 읽을 수 있다.\par}
+{\large 2. C++ 기본 개념을 설계 판단 수준으로 이해한다.\par}
+{\large 3. 자주 쓰는 코드 패턴을 통째로 외워 실전에 바로 적용한다.\par}
+{\large 4. MLIR 프로젝트 구조와 개발 흐름을 큰 그림으로 이해한다.\par}
 \vfill
 {\large 2026\par}
 \end{titlepage}
@@ -209,1184 +213,671 @@ Presets, Toolchain, LLVM/MLIR 연동까지 한 흐름으로 정리한 학습서\
 
 \mainmatter
 
-\chapter{왜 CMake를 마스터해야 하는가}
+\chapter{이 책을 읽는 방법}
 
-당신의 목표는 단순히 \code{cmake -B build -S .}를 외우는 것이 아닙니다. \term{프로젝트 구조를 설계하고}, \term{타겟 단위로 의존성을 관리하고}, \term{LLVM/MLIR 같은 큰 생태계와 연결해도 버티는 빌드 감각}을 갖추는 것이 핵심입니다.
+이 책의 목적은 C++ 전체를 완벽히 가르치는 것이 아니다. 대신 \term{C++ 코드가 왜 저렇게 생겼는지 이해하고}, \term{자주 나오는 패턴을 암기하고}, \term{MLIR 코드를 읽고 수정할 수 있는 상태}까지 빠르게 끌어올리는 것이다.
 
-\begin{conceptbox}[title={이 책의 목표}]
+\begin{conceptbox}[title={권장 학습 순서}]
 \begin{enumerate}[nosep]
-\item 작은 C++ 프로젝트를 스스로 빌드할 수 있다.
-\item 헤더 경로, 컴파일 옵션, 링크 의존성을 타겟 기준으로 설계할 수 있다.
-\item 외부 패키지와 테스트, 설치, 재사용 가능한 패키지 구성을 이해한다.
-\item LLVM/MLIR처럼 크고 복잡한 생태계에서 CMake 파일을 읽고 고칠 수 있다.
+\item Part I에서 CMake와 빌드 흐름을 먼저 익힌다.
+\item Part II에서 소유권, 템플릿, virtual, move 같은 기본 개념을 잡는다.
+\item Part III에서 실전 패턴을 암기한다.
+\item Part IV에서 MLIR의 큰 그림, TableGen, 패스 개발 흐름을 연결한다.
 \end{enumerate}
 \end{conceptbox}
 
 \begin{pythonbox}
-Python에서 익숙한 것은 \code{pip install}, \code{pyproject.toml}, 가상환경, 테스트 러너입니다. C++에서는 그 역할이 여러 층으로 나뉩니다. 컴파일러, 링커, 빌드 디렉토리, 패키지 설정, 설치 경로를 명시적으로 다뤄야 합니다. CMake는 이 복잡성을 정리해 주는 메타 빌드 시스템입니다.
+Python에서는 런타임 모델이 대부분을 숨겨준다. C++에서는 타입, 수명, 소유권, 링크, 빌드 그래프를 직접 다뤄야 한다. 그래서 C++를 잘하려면 문법보다 먼저 \term{객체 수명}과 \term{타겟 관계}를 이해해야 한다.
 \end{pythonbox}
 
-\section{CMake가 실제로 하는 일}
+\part{빌드와 CMake}
 
-CMake는 컴파일러가 아닙니다. \code{ninja}, \code{make}, Xcode, Visual Studio 같은 \term{실제 빌드 도구용 설정 파일}을 생성합니다. 즉, CMake의 핵심 일은 ``프로젝트의 빌드 그래프를 선언''하는 것입니다.
+\chapter{MLIR 프로젝트를 위한 CMake 핵심}
 
-\begin{lstlisting}[style=shell,numbers=none,title={기본 흐름}]
-cmake -S . -B build          # configure: 빌드 그래프 생성
-cmake --build build          # build: 실제 컴파일/링크
-ctest --test-dir build       # test: 테스트 실행
-cmake --install build        # install: 산출물 배치
+LLVM/MLIR을 다루려면 먼저 \code{cmake}가 무엇을 하는지 감이 잡혀야 한다. 핵심은 \term{소스 파일 나열}이 아니라 \term{타겟 그래프 설계}다.
+
+\section{전체 흐름}
+
+\begin{lstlisting}[style=shell,numbers=none,title={LLVM/MLIR 빌드의 기본 흐름}]
+git clone https://github.com/llvm/llvm-project.git
+cd llvm-project
+git checkout llvmorg-18.1.0
+
+cmake -S llvm -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=$HOME/llvm-install \
+  -DLLVM_ENABLE_PROJECTS=mlir \
+  -DLLVM_TARGETS_TO_BUILD=host \
+  -DLLVM_ENABLE_ASSERTIONS=ON
+
+cmake --build build -j$(sysctl -n hw.ncpu)
+cmake --install build
 \end{lstlisting}
 
 \begin{summarybox}
 \begin{itemize}[nosep]
-\item configure 단계와 build 단계는 다르다.
-\item CMake를 읽을 때는 ``무슨 파일을 컴파일하나''보다 ``무슨 타겟을 정의하나''를 먼저 봐야 한다.
-\item 프로젝트가 커질수록 파일보다 \term{타겟 간 관계}를 이해하는 것이 더 중요하다.
+\item \code{-S}는 소스 루트, \code{-B}는 빌드 디렉토리다.
+\item \code{configure} 단계와 \code{build} 단계는 다르다.
+\item MLIR 개발에서는 \code{Release + Assertions} 조합이 실용적이다.
+\item LLVM은 변동이 빠르므로 \code{main}보다 릴리스 태그 고정이 안전하다.
 \end{itemize}
 \end{summarybox}
 
-\begin{quizbox}
-\textbf{Q1.} CMake가 직접 하는 일과 하지 않는 일을 구분해 보자.
-\begin{enumerate}
-\item \code{g++} 실행 자체
-\item 타겟 사이 의존성 그래프 모델링
-\item Ninja 파일 생성
-\item 소스 코드를 최적화해서 더 빠르게 만드는 것
-\end{enumerate}
-\textbf{정답}: 2, 3만 CMake의 역할. 1은 생성된 빌드 시스템이 수행하고, 4는 컴파일러/링커의 역할이다.
-\end{quizbox}
+\section{외워야 할 CMake 명령 5개}
 
-\chapter{가장 작은 CMake 프로젝트}
-
-\section{최소 구성}
-
-\begin{lstlisting}[style=cmake,title={\file{CMakeLists.txt} 최소 버전}]
+\begin{lstlisting}[style=cmake,title={가장 자주 보는 CMake 명령}]
 cmake_minimum_required(VERSION 3.20)
-project(kv_cli LANGUAGES CXX)
+project(MyTool LANGUAGES CXX)
 
-add_executable(kv
-  src/main.cpp
-)
-\end{lstlisting}
+add_library(MyDialect lib/MyDialect.cpp)
+add_executable(my-opt tools/my-opt.cpp)
 
-\begin{lstlisting}[style=cpp,title={\file{src/main.cpp}}]
-#include <iostream>
+target_link_libraries(my-opt PRIVATE MyDialect MLIRIR)
 
-int main() {
-  std::cout << "kv-cli" << std::endl;
-  return 0;
-}
-\end{lstlisting}
-
-\section{자주 쓰는 기본 설정}
-
-\begin{lstlisting}[style=cmake]
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-\end{lstlisting}
-
-\begin{conceptbox}[title={의미}]
-\begin{itemize}[nosep]
-\item \code{CMAKE\_CXX\_STANDARD 20}: C++20 사용 의도
-\item \code{REQUIRED ON}: 지원 안 하면 에러
-\item \code{EXTENSIONS OFF}: \code{gnu++20} 대신 \code{c++20} 선호
-\end{itemize}
-\end{conceptbox}
-
-\begin{warningbox}
-실전에서는 전역 변수보다 \code{target\_compile\_features()}가 더 안전하다. 전역 설정은 서브프로젝트와 섞일 때 충돌이 생기기 쉽다.
-\end{warningbox}
-
-\section{빌드 디렉토리를 분리하는 이유}
-
-\begin{lstlisting}[style=shell,numbers=none]
-cmake -S . -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
-\end{lstlisting}
-
-소스 디렉토리와 빌드 디렉토리를 분리하면, 설정 조합을 여러 개 유지할 수 있고 산출물이 저장소를 오염시키지 않습니다.
-
-\begin{quizbox}
-\textbf{Q2.} 아래 중 권장되는 흐름은?
-\begin{enumerate}[label=\Alph*.]
-\item 프로젝트 루트에서 \code{make}
-\item 소스 루트에 \code{CMakeCache.txt}와 객체 파일을 섞어서 생성
-\item 별도 \code{build/} 디렉토리에서 configure/build/test/install 수행
-\end{enumerate}
-\textbf{정답}: C
-\end{quizbox}
-
-\chapter{예약어, 명령, 옵션을 어떻게 읽어야 하는가}
-
-\section{먼저 정리: CMake에 진짜 ``예약어''가 있는가}
-
-엄밀하게 말하면 CMake는 C++처럼 강한 의미의 예약어 목록이 있는 언어가 아닙니다. 실전에서 우리가 ``예약어''라고 부르는 것은 보통 세 층입니다.
-
-\begin{enumerate}[nosep]
-\item \term{명령(command)}: \code{project()}, \code{add\_library()}, \code{find\_package()}처럼 호출하는 것
-\item \term{인자/키워드(keyword-like argument)}: \code{PUBLIC}, \code{PRIVATE}, \code{REQUIRED}, \code{CONFIG}, \code{VERSION}처럼 명령 안에서 의미를 바꾸는 것
-\item \term{변수(variable)}: \code{CMAKE\_CXX\_STANDARD}, \code{PROJECT\_SOURCE\_DIR}, \code{BUILD\_TESTING}처럼 상태를 들고 있는 것
-\end{enumerate}
-
-그래서 CMake 파일을 읽을 때는 ``이 단어가 문법 예약어인가?''보다 ``이 단어가 명령인지, 옵션인지, 변수인지''를 먼저 분류해야 합니다.
-
-\begin{conceptbox}[title={CMake 읽기의 기본 질문}]
-\begin{enumerate}[nosep]
-\item 지금 보는 줄이 \term{무슨 타겟을 만들거나 수정하는가}?
-\item 이 줄은 \term{configure 시점}에 평가되나, build/generate 시점에 반영되나?
-\item 이 설정은 \term{현재 타겟만} 바꾸나, \term{소비자에게 전파}되나?
-\item 이 값은 \term{전역 변수}인가, \term{타겟 속성}인가?
-\end{enumerate}
-\end{conceptbox}
-
-\section{현재 예제 코드 한 줄씩 해석}
-
-\begin{lstlisting}[style=cmake,title={가장 작은 예제 다시 보기}]
-cmake_minimum_required(VERSION 3.20)
-project(kv_cli LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-add_executable(kv
-  src/main.cpp
-)
-\end{lstlisting}
-
-\begin{longtable}{@{}p{0.28\textwidth}p{0.68\textwidth}@{}}
-\toprule
-\textbf{줄} & \textbf{의미} \\
-\midrule
-\code{cmake\_minimum\_required(VERSION 3.20)} & 이 프로젝트는 최소 CMake 3.20 문법과 정책을 기준으로 작성되었다는 선언이다. 너무 낮은 버전의 CMake로 열면 바로 실패시킨다. 동시에 여러 CMake 정책(policy)의 기본 동작도 이 버전에 맞춰진다. \\
-\code{project(kv\_cli LANGUAGES CXX)} & 프로젝트 이름을 \code{kv\_cli}로 정하고, C++ 언어를 활성화한다. 이 줄이 지나야 C++ 컴파일러 탐색과 관련 변수 초기화가 제대로 이뤄진다. \\
-\code{set(CMAKE\_CXX\_STANDARD 20)} & 이후 생성되는 C++ 타겟의 기본 언어 표준을 C++20으로 요청한다. ``반드시 이걸 써라''라기보다는 기본 의도를 지정하는 전역 변수에 가깝다. \\
-\code{set(CMAKE\_CXX\_STANDARD\_REQUIRED ON)} & 컴파일러가 C++20을 제대로 지원하지 않으면 다른 하위 표준으로 조용히 내려가지 말고 실패하라는 뜻이다. \\
-\code{set(CMAKE\_CXX\_EXTENSIONS OFF)} & \code{gnu++20} 같은 컴파일러 확장 모드보다 표준 모드 \code{c++20}를 선호한다. 이식성을 높이는 데 유리하다. \\
-\code{add\_executable(kv src/main.cpp)} & \code{kv}라는 실행 파일 타겟을 만들고, 그 소스로 \file{src/main.cpp}를 연결한다. 여기서 핵심은 파일 나열이 아니라 ``kv라는 타겟이 존재하게 된다''는 점이다. \\
-\bottomrule
-\end{longtable}
-
-\begin{pythonbox}
-Python에서 \code{pyproject.toml}은 빌드 메타데이터와 패키지 설정을 담습니다. CMake의 각 줄은 그보다 더 낮은 레벨입니다. 컴파일러 활성화, 언어 표준, 실제 링크 타겟 생성 같은 단계가 명시적으로 드러납니다.
-\end{pythonbox}
-
-\section{자주 보는 명령을 상세히 이해하기}
-
-\subsection*{\code{cmake\_minimum\_required(VERSION ...)}}
-
-\begin{itemize}[nosep]
-\item \code{VERSION}은 명령의 필수 키워드다.
-\item 단순 버전 체크 이상으로, CMake 정책의 기준선을 잡는 역할이 중요하다.
-\item 실전에서는 프로젝트가 실제로 테스트한 최소 버전을 적어야 한다. ``대충 최신''을 적으면 오래된 환경에서 괜히 깨지고, 너무 낮게 적으면 실제로는 지원하지 않는 기능을 쓰면서 거짓말하게 된다.
-\end{itemize}
-
-\begin{warningbox}
-\code{cmake\_minimum\_required()}는 거의 항상 루트 \file{CMakeLists.txt} 최상단에 둔다. CMake 정책이 뒤늦게 바뀌면 문서 해석과 동작이 꼬일 수 있다.
-\end{warningbox}
-
-\subsection*{\code{project(...)}} 
-
-\begin{lstlisting}[style=cmake]
-project(kv_cli VERSION 0.1.0 LANGUAGES CXX)
-\end{lstlisting}
-
-\begin{longtable}{@{}p{0.24\textwidth}p{0.72\textwidth}@{}}
-\toprule
-\textbf{항목} & \textbf{의미} \\
-\midrule
-\code{kv\_cli} & 프로젝트 이름. \code{PROJECT\_NAME}, \code{CMAKE\_PROJECT\_NAME} 같은 변수에 반영된다. \\
-\code{VERSION 0.1.0} & 프로젝트 버전. 설치 패키지, configure 파일, 문서 메타데이터에 재사용하기 좋다. \\
-\code{LANGUAGES CXX} & C++만 활성화. 필요하면 \code{C}, \code{CUDA}, \code{OBJCXX} 등을 추가할 수 있다. 안 쓰는 언어를 켜지 않는 것이 configure 시간을 줄이고 의도를 선명하게 한다. \\
-\bottomrule
-\end{longtable}
-
-\textbf{기억 포인트}: \code{project()}는 단순 이름표가 아니라 \term{언어 활성화 트리거}라고 기억하면 된다.
-
-\subsection*{\code{set(...)}} 
-
-\code{set()}은 가장 남용되기 쉬운 명령입니다. 문제는 너무 범용이라서, 값을 넣는 순간 ``지역 변수'', ``캐시 변수'', ``전역 관습 변수'', ``하위 디렉토리에 전파되는 설정''이 뒤섞이기 쉽다는 점입니다.
-
-\begin{lstlisting}[style=cmake]
-set(CMAKE_CXX_STANDARD 20)
-set(KV_ENABLE_LOGGING ON)
-set(MY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data")
-\end{lstlisting}
-
-\begin{itemize}[nosep]
-\item 첫 줄은 CMake가 특별히 읽는 \term{관습 변수}를 세팅하는 예다.
-\item 둘째 줄은 우리가 정의한 일반 변수다.
-\item 셋째 줄은 문자열 결합이다. \code{"\$\{...\}"}는 변수 치환.
-\end{itemize}
-
-\begin{warningbox}
-\code{set()}로 모든 문제를 해결하려는 습관은 좋지 않다. 사용자가 끄고 켤 옵션이면 \code{option()}, 타겟 컴파일 정의면 \code{target\_compile\_definitions()}, include path면 \code{target\_include\_directories()}가 더 적절하다.
-\end{warningbox}
-
-\subsection*{\code{option(...)}} 
-
-\begin{lstlisting}[style=cmake]
-option(KV_BUILD_TESTS "Build tests" ON)
-\end{lstlisting}
-
-\begin{itemize}[nosep]
-\item 첫 번째 인자: 캐시 변수 이름
-\item 두 번째 인자: 사용자에게 보이는 설명
-\item 세 번째 인자: 기본값
-\end{itemize}
-
-이 명령은 ``사용자가 configure 시점에 바꿀 수 있는 불리언 스위치''를 만든다. \code{cmake -DKV\_BUILD\_TESTS=OFF ...}처럼 덮어쓸 수 있다.
-
-\subsection*{\code{add\_executable(...)} / \code{add\_library(...)}}
-
-이 둘은 CMake의 중심입니다. 프로젝트를 읽을 때 가장 먼저 찾아야 하는 줄입니다.
-
-\begin{lstlisting}[style=cmake]
-add_library(kv_core src/store.cpp)
-add_executable(kv_cli src/main.cpp)
-\end{lstlisting}
-
-\begin{itemize}[nosep]
-\item 이 줄이 있어야 타겟이 생긴다.
-\item 이후의 \code{target\_*} 명령은 거의 모두 이 타겟을 수정한다.
-\item 소스 목록은 ``이 타겟을 구성하는 재료''일 뿐이다. 진짜 주인공은 타겟 이름이다.
-\end{itemize}
-
-\subsection*{\code{target\_include\_directories(...)}}
-
-\begin{lstlisting}[style=cmake]
-target_include_directories(kv_core
-  PUBLIC include
-  PRIVATE src
-)
-\end{lstlisting}
-
-\begin{longtable}{@{}p{0.2\textwidth}p{0.76\textwidth}@{}}
-\toprule
-\textbf{옵션} & \textbf{의미} \\
-\midrule
-\code{PUBLIC} & 현재 타겟도 쓰고, 이 타겟을 링크하는 소비자도 필요하다. 보통 공개 헤더 위치. \\
-\code{PRIVATE} & 현재 타겟의 구현에서만 필요하다. 소비자에게는 전달하지 않는다. \\
-\code{INTERFACE} & 현재 타겟 자체는 안 쓰고, 소비자에게만 전달한다. header-only 라이브러리나 usage requirement 묶음에 많다. \\
-\bottomrule
-\end{longtable}
-
-\textbf{현재 코드의 의미}: \code{kv\_core}의 공개 헤더는 \file{include/} 아래에 있고, 내부 구현은 \file{src/}에 있는 비공개 헤더를 쓸 수도 있다는 뜻입니다.
-
-\subsection*{\code{target\_link\_libraries(...)}}
-
-\begin{lstlisting}[style=cmake]
-target_link_libraries(kv_cli PRIVATE kv_core)
-\end{lstlisting}
-
-이 한 줄의 의미는 세 겹입니다.
-
-\begin{enumerate}[nosep]
-\item 링크 단계에서 \code{kv\_core}를 \code{kv\_cli}에 연결한다.
-\item \code{kv\_core}가 들고 있는 usage requirement를 \code{PRIVATE}/\code{PUBLIC} 규칙에 따라 전달받는다.
-\item ``이 실행 파일은 이 라이브러리에 의존한다''는 빌드 그래프 관계를 명시한다.
-\end{enumerate}
-
-\textbf{여기서 \code{PRIVATE}의 뜻}: \code{kv\_cli}를 누가 또 링크해 가는 상황은 거의 없으므로, 보통 실행 파일 링크는 \code{PRIVATE}라고 기억하면 된다.
-
-\subsection*{\code{find\_package(...)}}
-
-\begin{lstlisting}[style=cmake]
-find_package(fmt REQUIRED CONFIG)
-\end{lstlisting}
-
-\begin{longtable}{@{}p{0.2\textwidth}p{0.76\textwidth}@{}}
-\toprule
-\textbf{옵션} & \textbf{의미} \\
-\midrule
-\code{fmt} & 찾고 싶은 패키지 이름 \\
-\code{REQUIRED} & 못 찾으면 경고가 아니라 configure 실패 \\
-\code{CONFIG} & 패키지가 제공하는 \file{fmtConfig.cmake} 계열 파일을 우선 찾겠다는 의도 \\
-\bottomrule
-\end{longtable}
-
-\textbf{현재 코드의 의미}: ``fmt가 설치되어 있다고 가정하고, 그 패키지가 제공하는 현대식 imported target 메타데이터를 읽어와라. 없으면 조용히 넘어가지 말고 바로 실패해라'' 입니다.
-
-\subsection*{\code{install(...)}}
-
-\begin{lstlisting}[style=cmake]
-install(TARGETS kv_core kv_cli
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-)
-\end{lstlisting}
-
-\begin{itemize}[nosep]
-\item \code{TARGETS}: 어떤 타겟을 설치할지
-\item \code{RUNTIME DESTINATION}: 실행 파일이 갈 위치
-\item \code{LIBRARY DESTINATION}: 공유 라이브러리가 갈 위치
-\item \code{ARCHIVE DESTINATION}: 정적 라이브러리, import library가 갈 위치
-\end{itemize}
-
-이건 단순 복사가 아니라 ``이 프로젝트를 다른 곳에서 소비 가능한 산출물로 정리하라''는 선언입니다.
-
-\section{옵션을 읽을 때 흔히 놓치는 포인트}
-
-\begin{conceptbox}[title={옵션은 명령마다 의미가 다르다}]
-\code{VERSION}, \code{REQUIRED}, \code{CONFIG}, \code{PUBLIC}, \code{PRIVATE} 같은 단어는 영어 단어라서 감으로 읽기 쉽지만, \term{어느 명령 안에 들어갔는지}에 따라 정확한 의미가 달라집니다. 예를 들어 \code{VERSION}은 \code{cmake\_minimum\_required()}에서는 최소 버전 문법이고, \code{project()}에서는 프로젝트 버전 메타데이터입니다.
-\end{conceptbox}
-
-\begin{longtable}{@{}p{0.24\textwidth}p{0.32\textwidth}p{0.4\textwidth}@{}}
-\toprule
-\textbf{단어} & \textbf{주로 나오는 곳} & \textbf{실전 해석} \\
-\midrule
-\code{VERSION} & \code{cmake\_minimum\_required}, \code{project} & 최소 도구 버전인지, 프로젝트 자체 버전인지 문맥으로 구분 \\
-\code{REQUIRED} & \code{find\_package} & 없으면 진행하지 말고 실패 \\
-\code{CONFIG} & \code{find\_package} & Config mode를 우선 사용 \\
-\code{PUBLIC} & \code{target\_*\_*} 계열 & 현재 타겟과 소비자 모두에 전파 \\
-\code{PRIVATE} & \code{target\_*\_*} 계열 & 현재 타겟에만 적용 \\
-\code{INTERFACE} & \code{target\_*\_*} 계열 & 소비자에게만 적용 \\
-\bottomrule
-\end{longtable}
-
-\section{무엇을 어디까지 외워야 하는가}
-
-\subsection*{레벨 1: 바로 손으로 쓸 수 있어야 하는 것}
-
-\begin{itemize}[nosep]
-\item \code{cmake\_minimum\_required}
-\item \code{project}
-\item \code{add\_executable}, \code{add\_library}
-\item \code{target\_link\_libraries}
-\item \code{target\_include\_directories}
-\item \code{target\_compile\_features}
-\item \code{find\_package}
-\item \code{option}
-\item \code{add\_subdirectory}
-\end{itemize}
-
-이 레벨은 \term{검색 없이도 대충 뼈대를 칠 수 있어야} 합니다. 특히 \code{PUBLIC}/\code{PRIVATE}/\code{INTERFACE}의 감각은 암기가 아니라 반사적으로 나와야 합니다.
-
-\begin{conceptbox}[title={레벨 1 명령은 예제까지 같이 기억}]
-아래 예제는 ``지금 바로 빈 프로젝트에 손으로 칠 수 있어야 하는 최소 패턴''입니다. 완벽히 토씨까지 외우라는 뜻은 아니고, \term{명령이 하는 역할과 대표적인 쓰임}이 바로 떠올라야 한다는 뜻입니다.
-\end{conceptbox}
-
-\subsection*{\code{cmake\_minimum\_required}}
-
-\begin{lstlisting}[style=cmake]
-cmake_minimum_required(VERSION 3.20)
-\end{lstlisting}
-
-\textbf{의미}: 이 프로젝트는 최소 CMake 3.20을 요구한다. 너무 낮은 버전이면 configure 자체를 막는다.
-
-\subsection*{\code{project}}
-
-\begin{lstlisting}[style=cmake]
-project(kv_cli VERSION 0.1.0 LANGUAGES CXX)
-\end{lstlisting}
-
-\textbf{의미}: 프로젝트 이름을 \code{kv\_cli}로 두고, 버전은 \code{0.1.0}, 활성 언어는 C++만 사용한다.
-
-\subsection*{\code{add\_executable}}
-
-\begin{lstlisting}[style=cmake]
-add_executable(kv_cli
-  src/main.cpp
-)
-\end{lstlisting}
-
-\textbf{의미}: \code{kv\_cli}라는 실행 파일 타겟을 만들고, 진입점 소스로 \file{src/main.cpp}를 사용한다.
-
-\subsection*{\code{add\_library}}
-
-\begin{lstlisting}[style=cmake]
-add_library(kv_core
-  src/store.cpp
-  src/command.cpp
-)
-\end{lstlisting}
-
-\textbf{의미}: 재사용 가능한 \code{kv\_core} 라이브러리 타겟을 만들고, 핵심 구현을 그 안으로 모은다.
-
-\subsection*{\code{target\_link\_libraries}}
-
-\begin{lstlisting}[style=cmake]
-target_link_libraries(kv_cli PRIVATE kv_core)
-\end{lstlisting}
-
-\textbf{의미}: \code{kv\_cli}는 \code{kv\_core}를 링크해서 사용한다. 실행 파일 기준으로는 거의 항상 \code{PRIVATE}로 시작하면 된다.
-
-\subsection*{\code{target\_include\_directories}}
-
-\begin{lstlisting}[style=cmake]
-target_include_directories(kv_core
-  PUBLIC include
-)
-\end{lstlisting}
-
-\textbf{의미}: \code{kv\_core}의 공개 헤더는 \file{include/} 아래에 있고, 이 라이브러리를 쓰는 소비자도 그 경로를 받아야 한다.
-
-\subsection*{\code{target\_compile\_features}}
-
-\begin{lstlisting}[style=cmake]
-target_compile_features(kv_core PUBLIC cxx_std_20)
-\end{lstlisting}
-
-\textbf{의미}: \code{kv\_core}는 C++20 기능을 요구하며, 이 라이브러리의 공개 인터페이스를 소비하는 쪽도 그 요구를 이어받을 수 있다.
-
-\subsection*{\code{find\_package}}
-
-\begin{lstlisting}[style=cmake]
-find_package(fmt REQUIRED CONFIG)
-\end{lstlisting}
-
-\textbf{의미}: fmt 패키지를 Config mode로 찾고, 없으면 조용히 넘어가지 말고 configure를 실패시킨다.
-
-\subsection*{\code{option}}
-
-\begin{lstlisting}[style=cmake]
-option(KV_BUILD_TESTS "Build tests" ON)
-\end{lstlisting}
-
-\textbf{의미}: 사용자가 \code{-DKV\_BUILD\_TESTS=OFF}처럼 켜고 끌 수 있는 불리언 옵션을 만든다.
-
-\subsection*{\code{add\_subdirectory}}
-
-\begin{lstlisting}[style=cmake]
-add_subdirectory(src)
-add_subdirectory(tests)
-\end{lstlisting}
-
-\textbf{의미}: \file{src/CMakeLists.txt}, \file{tests/CMakeLists.txt}를 현재 빌드 그래프에 포함시켜 하위 타겟 정의를 읽어온다.
-
-\subsection*{레벨 2: 이름은 기억하고 필요할 때 문서 보면 되는 것}
-
-\begin{itemize}[nosep]
-\item \code{install}
-\item \code{configure\_file}
-\item \code{add\_test}, \code{include(CTest)}
-\item \code{set\_target\_properties}
-\item generator expression 문법
-\item export/package 관련 세부 명령
-\end{itemize}
-
-이 레벨은 ``무슨 명령이 있는지''와 ``어떤 문제에 쓰는지''까지만 기억하면 충분합니다. 세부 옵션 순서까지 암기할 필요는 없습니다.
-
-\subsection*{레벨 3: 검색해서 써도 되는 것}
-
-\begin{itemize}[nosep]
-\item 복잡한 \code{install(EXPORT ...)} 조합
-\item \code{file(GENERATE)}의 세부 시맨틱
-\item Toolchain 파일 변수 세트
-\item CPack, package registry, 고급 policy
-\item LLVM/MLIR 전용 매크로 이름과 세부 인자
-\end{itemize}
-
-이건 자주 안 쓰므로 외우기보다 \term{존재를 알고 문서에서 정확히 확인하는 것}이 낫습니다.
-
-\begin{checklistbox}
-\begin{itemize}[nosep]
-\item 암기 대상 1순위는 명령 이름보다 \term{타겟 중심 사고}다.
-\item 2순위는 \code{PUBLIC}/\code{PRIVATE}/\code{INTERFACE}다.
-\item 3순위는 configure/build/install/test의 단계 구분이다.
-\item 나머지는 ``이 문제를 풀 때 무슨 명령을 찾아야 하는가''를 아는 정도면 충분하다.
-\end{itemize}
-\end{checklistbox}
-
-\section{현재 당신 수준에서 특히 기억해야 할 것}
-
-당신은 초보 입문자를 넘어서, 이미 C++ 프로젝트와 LLVM/MLIR 계열 CMake를 읽고 싶은 단계에 있습니다. 이 단계에서 중요한 건 문법 조각보다 다음 네 가지입니다.
-
-\begin{enumerate}[nosep]
-\item \term{타겟을 만든다}: \code{add\_library}, \code{add\_executable}
-\item \term{타겟을 수정한다}: \code{target\_link\_libraries}, \code{target\_include\_directories}, \code{target\_compile\_features}
-\item \term{외부 세계를 끌어온다}: \code{find\_package}, \code{add\_subdirectory}
-\item \term{사용자 제어와 산출물 배치를 만든다}: \code{option}, \code{install}, \code{add\_test}
-\end{enumerate}
-
-이 네 분류만 머릿속에 고정되어 있으면, 처음 보는 CMake 파일도 훨씬 빨리 읽힙니다.
-
-\begin{quizbox}
-\textbf{Q2-1.} 아래 줄을 한국어로 해석해 보라.
-\begin{lstlisting}[style=cmake,numbers=none]
-target_link_libraries(kv_cli PRIVATE kv_core)
-\end{lstlisting}
-\textbf{정답}: \code{kv\_cli} 실행 파일은 \code{kv\_core} 라이브러리에 의존하며, 그 관계는 현재 타겟에만 적용된다.
-\end{quizbox}
-
-\begin{quizbox}
-\textbf{Q2-2.} \code{find\_package(fmt REQUIRED CONFIG)}에서 \code{REQUIRED}를 빼면 무엇이 달라지는가?
-
-\textbf{정답}: fmt를 못 찾았을 때 즉시 실패하지 않고, 이후 로직에서 조건 분기나 별도 처리를 할 여지가 생긴다. 단 대부분의 실전 프로젝트에서는 정말 필요한 패키지라면 \code{REQUIRED}를 두는 편이 더 명확하다.
-\end{quizbox}
-
-\begin{quizbox}
-\textbf{Q2-3.} 지금 당장 암기해야 할 우선순위를 쓰면?
-
-\textbf{정답}: 타겟 생성 명령, 타겟 수정 명령, \code{PUBLIC}/\code{PRIVATE}/\code{INTERFACE}, \code{find\_package}, configure/build/install/test 단계 구분.
-\end{quizbox}
-
-\chapter{타겟 중심 사고}
-
-\section{파일이 아니라 타겟을 본다}
-
-CMake 초보는 보통 ``이 파일을 어떻게 추가하지?''를 먼저 생각합니다. 그러나 유지보수 가능한 CMake는 ``이 타겟은 어떤 API를 노출하고, 무엇에 링크되고, 어떤 include path와 compile definition을 소비자에게 전파하는가?''로 설계합니다.
-
-\begin{lstlisting}[style=cmake,title={좋은 방향의 CMake}]
-add_library(kv_core
-  src/store.cpp
-  src/command.cpp
-)
-
-target_include_directories(kv_core
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_compile_features(kv_core PUBLIC cxx_std_20)
-
-add_executable(kv_cli
-  src/main.cpp
-)
-
-target_link_libraries(kv_cli PRIVATE kv_core)
-\end{lstlisting}
-
-\section{PUBLIC, PRIVATE, INTERFACE}
-
-\begin{tabularx}{\textwidth}{@{}lX@{}}
-\toprule
-\textbf{키워드} & \textbf{의미} \\
-\midrule
-\code{PRIVATE} & 현재 타겟에서만 사용. 소비자에게 전파되지 않음 \\
-\code{PUBLIC} & 현재 타겟도 사용하고 소비자에게도 전파 \\
-\code{INTERFACE} & 현재 타겟 자체는 안 쓰고 소비자에게만 전파 \\
-\bottomrule
-\end{tabularx}
-
-\begin{lstlisting}[style=cmake,title={전파 예시}]
-target_include_directories(kv_core
-  PUBLIC include
-  PRIVATE src
-)
-
-target_link_libraries(kv_cli
-  PRIVATE kv_core
-)
-\end{lstlisting}
-
-위 예시에서 \code{kv\_cli}는 \code{kv\_core}를 링크하면서 \code{include} 경로는 자동으로 받지만, \code{src} 경로는 받지 않습니다.
-
-\begin{pythonbox}
-이 개념은 Python 패키지의 공개 API와 내부 구현 경계를 나누는 것과 비슷합니다. \code{PUBLIC}은 라이브러리 사용자에게 노출되는 계약이고, \code{PRIVATE}은 내부 구현 세부사항입니다.
-\end{pythonbox}
-
-\section{header-only 라이브러리}
-
-\begin{lstlisting}[style=cmake]
-add_library(kv_flags INTERFACE)
-target_compile_definitions(kv_flags INTERFACE KV_ENABLE_LOG=1)
-target_include_directories(kv_flags INTERFACE include)
-\end{lstlisting}
-
-\code{INTERFACE} 라이브러리는 소스 파일이 없고, ``사용 방법''만 배포합니다. 컴파일 옵션, include 디렉토리, 컴파일 정의를 묶는 데 유용합니다.
-
-\begin{quizbox}
-\textbf{Q3.} \code{kv\_core}의 헤더에서 \code{fmt::format}이 반환 타입과 인자 타입에 등장한다. \code{fmt}는 \code{PUBLIC}, \code{PRIVATE}, \code{INTERFACE} 중 무엇이어야 할까?
-
-\textbf{정답}: 보통 \code{PUBLIC}. 헤더를 소비하는 쪽도 그 의존성을 알아야 하기 때문이다.
-\end{quizbox}
-
-\chapter{프로젝트 구조를 어떻게 쪼개는가}
-
-\section{권장 디렉토리 구조}
-
-\begin{lstlisting}[style=shell,numbers=none]
-project-root/
-  CMakeLists.txt
-  cmake/
-    warnings.cmake
-    sanitizers.cmake
-  include/
-    kv/store.h
-  src/
-    store.cpp
-    main.cpp
-  tests/
-    store_test.cpp
-  third_party/
-\end{lstlisting}
-
-\section{루트와 서브디렉토리 책임 분리}
-
-\begin{lstlisting}[style=cmake,title={루트 CMakeLists.txt}]
-cmake_minimum_required(VERSION 3.20)
-project(kv_cli VERSION 0.1.0 LANGUAGES CXX)
-
-option(KV_BUILD_TESTS "Build tests" ON)
-
-add_subdirectory(src)
-
-if(KV_BUILD_TESTS)
-  enable_testing()
-  add_subdirectory(tests)
-endif()
-\end{lstlisting}
-
-\begin{lstlisting}[style=cmake,title={src/CMakeLists.txt}]
-add_library(kv_core
-  store.cpp
-)
-
-target_include_directories(kv_core
-  PUBLIC ${PROJECT_SOURCE_DIR}/include
-)
-
-add_executable(kv_cli main.cpp)
-target_link_libraries(kv_cli PRIVATE kv_core)
-\end{lstlisting}
-
-\begin{warningbox}
-\code{CMAKE\_SOURCE\_DIR}와 \code{PROJECT\_SOURCE\_DIR}를 무분별하게 섞지 마십시오. 서브프로젝트로 포함될 가능성이 있으면 \code{CMAKE\_CURRENT\_SOURCE\_DIR}, \code{PROJECT\_SOURCE\_DIR}, \code{PROJECT\_BINARY\_DIR}처럼 문맥에 맞는 변수를 써야 합니다.
-\end{warningbox}
-
-\section{언제 add\_subdirectory를 쓰나}
-
-\begin{itemize}[nosep]
-\item 우리 프로젝트의 일부인 내부 모듈: \code{add\_subdirectory}
-\item 설치된 외부 패키지 찾기: \code{find\_package}
-\item Git submodule이나 번들된 외부 라이브러리 직접 포함: 경우에 따라 \code{add\_subdirectory}, 단 정책 충돌 주의
-\end{itemize}
-
-\begin{quizbox}
-\textbf{Q4.} 루트에서 \code{include\_directories()}를 한 번 호출해서 모든 하위 타겟에 전역으로 뿌리는 방식이 왜 위험한가?
-
-\textbf{정답}: 타겟 경계가 사라져서 어떤 헤더가 어디서 오는지 추적이 어려워지고, 외부 서브프로젝트와 충돌하기 쉽다. 타겟 단위 전파가 더 읽기 쉽고 재사용 가능하다.
-\end{quizbox}
-
-\chapter{컴파일 옵션과 정의를 다루는 법}
-
-\section{전역 옵션보다 타겟 옵션}
-
-\begin{lstlisting}[style=cmake,title={권장 패턴}]
-target_compile_features(kv_core PUBLIC cxx_std_20)
-
-target_compile_options(kv_core PRIVATE
-  -Wall
-  -Wextra
-  -Wpedantic
-)
-
-target_compile_definitions(kv_core PRIVATE
-  KV_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
-)
-\end{lstlisting}
-
-\section{빌드 타입과 generator expression}
-
-\begin{lstlisting}[style=cmake]
-target_compile_definitions(kv_core PRIVATE
-  $<$<CONFIG:Debug>:KV_ENABLE_ASSERTS=1>
-  $<$<CONFIG:Release>:KV_FAST_PATH=1>
-)
-\end{lstlisting}
-
-\code{\$<...>}는 generator expression입니다. configure 시점이 아니라 generate/build 시점에 해석됩니다.
-
-\begin{conceptbox}[title={Multi-config vs Single-config}]
-\begin{itemize}[nosep]
-\item Ninja, Makefiles: 보통 single-config. \code{CMAKE\_BUILD\_TYPE} 사용.
-\item Visual Studio, Xcode, Ninja Multi-Config: 여러 구성을 동시에 가짐.
-\item 그래서 실전에서는 \code{if(CMAKE\_BUILD\_TYPE STREQUAL ...)}보다 generator expression이 더 이식성 있다.
-\end{itemize}
-\end{conceptbox}
-
-\section{경고 플래그 모듈화}
-
-\begin{lstlisting}[style=cmake,title={cmake/warnings.cmake}]
-add_library(project_warnings INTERFACE)
-
-target_compile_options(project_warnings INTERFACE
-  $<$<CXX_COMPILER_ID:Clang,AppleClang,GNU>:-Wall;-Wextra;-Wpedantic>
-  $<$<CXX_COMPILER_ID:MSVC>:/W4>
-)
-\end{lstlisting}
-
-\begin{lstlisting}[style=cmake]
-target_link_libraries(kv_core PRIVATE project_warnings)
-\end{lstlisting}
-
-\begin{quizbox}
-\textbf{Q5.} \code{add\_compile\_options(-Wall)}와 \code{target\_compile\_options(kv\_core PRIVATE -Wall)} 중 후자가 더 나은 이유는?
-
-\textbf{정답}: 어떤 타겟이 어떤 규칙을 가지는지 국소적으로 드러나고, 외부 서브프로젝트나 특정 타겟에 원치 않는 옵션 전파를 막을 수 있기 때문이다.
-\end{quizbox}
-
-\chapter{링크, 라이브러리, 그리고 왜 자꾸 undefined reference가 나는가}
-
-\section{컴파일과 링크는 다른 단계다}
-
-\begin{itemize}[nosep]
-\item 컴파일: 각 \file{.cpp}를 객체 파일로 변환
-\item 링크: 객체 파일과 라이브러리를 합쳐 최종 실행 파일 생성
-\item \code{undefined reference}: 헤더는 보이는데 구현 심볼이 링크에 안 들어왔다는 뜻
-\end{itemize}
-
-\section{정적 라이브러리와 공유 라이브러리}
-
-\begin{lstlisting}[style=cmake]
-add_library(kv_core STATIC
-  src/store.cpp
-)
-
-add_library(kv_plugin SHARED
-  src/plugin.cpp
-)
-\end{lstlisting}
-
-\begin{conceptbox}[title={실전 감각}]
-\begin{itemize}[nosep]
-\item 앱 내부 모듈은 대부분 \code{STATIC} 또는 기본 \code{add\_library}로 충분하다.
-\item 플러그인 시스템, ABI 노출, 동적 교체가 필요할 때만 \code{SHARED}를 신중하게 검토한다.
-\item 초반에는 ``링크 그래프를 명확하게'' 만드는 것이 동적 로딩보다 더 중요하다.
-\end{itemize}
-\end{conceptbox}
-
-\section{의존성 전파 예시}
-
-\begin{lstlisting}[style=cmake]
-add_library(kv_storage src/store.cpp)
-add_library(kv_commands src/command.cpp)
-
-target_link_libraries(kv_commands PUBLIC kv_storage)
-
-add_executable(kv_cli src/main.cpp)
-target_link_libraries(kv_cli PRIVATE kv_commands)
-\end{lstlisting}
-
-위 경우 \code{kv\_cli}는 \code{kv\_storage}를 직접 쓰지 않아도, \code{kv\_commands}의 \code{PUBLIC} 링크 전파 덕분에 함께 링크됩니다.
-
-\begin{warningbox}
-링크가 우연히 통과한다고 해서 설계가 좋은 것은 아닙니다. 헤더에 노출된 의존성은 \code{PUBLIC}, 구현에만 필요한 의존성은 \code{PRIVATE}로 정리해야 나중에 리팩터링이 쉬워집니다.
-\end{warningbox}
-
-\begin{quizbox}
-\textbf{Q6.} \code{undefined reference to KVStore::set(...)} 에러가 났다. 가능한 원인을 두 가지 써 보라.
-
-\textbf{정답 예시}: \code{store.cpp}가 타겟 소스 목록에서 빠졌거나, \code{kv\_core} 라이브러리를 최종 실행 파일에 링크하지 않았다.
-\end{quizbox}
-
-\chapter{외부 패키지를 찾고 연결하기}
-
-\section{find\_package의 두 세계}
-
-\begin{enumerate}[nosep]
-\item \term{Module mode}: CMake가 제공하는 \file{FindXXX.cmake}를 찾는다.
-\item \term{Config mode}: 패키지가 설치한 \file{XXXConfig.cmake}를 찾는다.
-\end{enumerate}
-
-\begin{lstlisting}[style=cmake]
-find_package(fmt REQUIRED CONFIG)
-find_package(spdlog REQUIRED CONFIG)
-\end{lstlisting}
-
-현대 CMake에서는 가능하면 Config mode와 imported target을 쓰는 것이 좋습니다.
-
-\section{Imported target을 써야 하는 이유}
-
-\begin{lstlisting}[style=cmake]
-target_link_libraries(kv_core
-  PUBLIC
-    fmt::fmt
-    spdlog::spdlog
-)
-\end{lstlisting}
-
-이 방식은 include path, compile definition, 필요한 링크 플래그를 패키지 작성자가 한 번 묶어서 제공합니다.
-
-\begin{warningbox}
-\code{include\_directories(/usr/local/include)}와 \code{link\_directories(/usr/local/lib)}를 직접 쓰는 방식은 현대 CMake에서 거의 항상 열세다. 패키지가 제공하는 imported target이 있으면 그걸 우선 사용하라.
-\end{warningbox}
-
-\section{패키지를 못 찾을 때 보는 것}
-
-\begin{itemize}[nosep]
-\item \code{CMAKE\_PREFIX\_PATH}
-\item 패키지별 \code{<Pkg>\_DIR}
-\item 설치 위치 안의 \file{lib/cmake/<Pkg>} 또는 유사 경로
-\item 아키텍처 불일치 여부
-\end{itemize}
-
-\begin{lstlisting}[style=shell,numbers=none,title={예시}]
-cmake -S . -B build \
-  -DCMAKE_PREFIX_PATH=/opt/homebrew \
-  -Dfmt_DIR=/opt/homebrew/lib/cmake/fmt
-\end{lstlisting}
-
-\begin{quizbox}
-\textbf{Q7.} \code{find\_package(MLIR REQUIRED CONFIG)}가 실패했다. 가장 먼저 확인할 것은?
-
-\textbf{정답}: MLIR 설치 경로 아래의 \file{MLIRConfig.cmake} 위치와, 그 위치를 가리키는 \code{MLIR\_DIR} 또는 \code{CMAKE\_PREFIX\_PATH} 설정.
-\end{quizbox}
-
-\chapter{테스트, install, package로 이어지는 흐름}
-
-\section{CTest 연결}
-
-\begin{lstlisting}[style=cmake]
-include(CTest)
-
-if(BUILD_TESTING)
-  add_executable(store_test tests/store_test.cpp)
-  target_link_libraries(store_test PRIVATE kv_core)
-  add_test(NAME store_test COMMAND store_test)
-endif()
-\end{lstlisting}
-
-\begin{lstlisting}[style=shell,numbers=none]
-ctest --test-dir build --output-on-failure
-\end{lstlisting}
-
-\section{install 규칙}
-
-\begin{lstlisting}[style=cmake]
-install(TARGETS kv_core kv_cli
-  EXPORT kvTargets
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-)
-
-install(DIRECTORY include/ DESTINATION include)
-\end{lstlisting}
-
-\section{재사용 가능한 패키지로 내보내기}
-
-\begin{lstlisting}[style=cmake]
-install(EXPORT kvTargets
-  NAMESPACE kv::
-  DESTINATION lib/cmake/kv
-)
-\end{lstlisting}
-
-이 단계까지 가면 다른 프로젝트에서 \code{find\_package(kv CONFIG REQUIRED)} 후 \code{kv::kv\_core} 같은 imported target으로 소비할 수 있습니다.
-
-\begin{pythonbox}
-이 감각은 Python 패키지를 wheel로 배포해서 다른 프로젝트가 import 하는 흐름과 닮았습니다. 차이는 C++은 ABI, 헤더, 링크 옵션까지 함께 전달해야 한다는 점입니다.
-\end{pythonbox}
-
-\begin{quizbox}
-\textbf{Q8.} 왜 \code{install()} 없이도 로컬 빌드는 되지만, 다른 프로젝트에서 재사용하기는 어려울까?
-
-\textbf{정답}: 설치 규칙이 없으면 헤더, 라이브러리, export target 메타데이터를 일관된 위치와 형식으로 제공하지 못해 외부 프로젝트가 안정적으로 소비할 수 없다.
-\end{quizbox}
-
-\chapter{configure 단계에서 파일을 생성하는 법}
-
-\section{configure\_file}
-
-\begin{lstlisting}[style=cmake]
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
-  ${CMAKE_CURRENT_BINARY_DIR}/generated/config.h
-  @ONLY
-)
-\end{lstlisting}
-
-\begin{lstlisting}[style=cpp,title={config.h.in}]
-#pragma once
-
-#define KV_VERSION "@PROJECT_VERSION@"
-#define KV_ENABLE_CACHE @KV_ENABLE_CACHE@
-\end{lstlisting}
-
-\code{configure\_file()}는 configure 시점 치환입니다. 빌드할 때마다 실행되는 스크립트가 아니라, 설정이 바뀔 때 다시 생성되는 파일입니다.
-
-\section{file(GENERATE)와의 차이}
-
-\begin{itemize}[nosep]
-\item \code{configure\_file}: configure 시점 치환
-\item \code{file(GENERATE)}: generate 시점, configuration별 파일 생성에 유리
-\item \code{add\_custom\_command}: build 시점에 실제 작업 수행
-\end{itemize}
-
-\begin{warningbox}
-configure 단계에서 해야 할 일과 build 단계에서 해야 할 일을 혼동하면, 소스를 바꿨는데 파일이 안 갱신되거나 매번 불필요하게 재생성되는 문제가 생긴다.
-\end{warningbox}
-
-\begin{quizbox}
-\textbf{Q9.} protobuf 컴파일, TableGen 생성, codegen 스크립트 실행은 보통 \code{configure\_file()}보다 무엇에 가깝나?
-
-\textbf{정답}: \code{add\_custom\_command()} 혹은 해당 생태계가 제공하는 전용 매크로. 실제 빌드 산출물 생성 단계이기 때문이다.
-\end{quizbox}
-
-\chapter{Presets와 Toolchain으로 팀 개발 수준을 올리기}
-
-\section{CMakePresets.json}
-
-\begin{lstlisting}[style=cmake,title={개념 예시, 실제 파일은 JSON}]
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "dev",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/dev",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "KV_BUILD_TESTS": "ON"
-      }
-    }
-  ]
-}
-\end{lstlisting}
-
-Presets는 팀 전체가 같은 configure 인자를 재현하도록 도와줍니다. README에 긴 명령을 적는 대신, \code{cmake --preset dev}로 고정할 수 있습니다.
-
-\section{Toolchain 파일}
-
-\begin{lstlisting}[style=cmake]
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
-\end{lstlisting}
-
-Toolchain 파일은 cross-compiling, 특정 SDK, sysroot, 패키지 매니저 통합에 유용합니다.
-
-\begin{checklistbox}
-\begin{itemize}[nosep]
-\item 팀에 빌드 명령이 길어지면 Presets를 도입한다.
-\item 플랫폼이나 아키텍처 차이를 숨겨야 하면 Toolchain 파일을 고려한다.
-\item 문서보다 재현 가능한 설정 파일을 우선한다.
-\end{itemize}
-\end{checklistbox}
-
-\begin{quizbox}
-\textbf{Q10.} 개인 환경별로 \code{CMAKE\_PREFIX\_PATH}가 다르고, 팀원이 매번 README의 긴 명령을 복붙하고 있다. 무엇을 도입하면 좋은가?
-
-\textbf{정답}: 기본적으로 \code{CMakePresets.json}. 플랫폼/컴파일러 자체까지 고정해야 하면 필요에 따라 toolchain 파일도 함께 사용.
-\end{quizbox}
-
-\chapter{LLVM/MLIR 프로젝트를 읽는 눈}
-
-\section{왜 별도 장이 필요한가}
-
-당신은 단순한 toy project보다 한 단계 더 가려 하고 있습니다. LLVM/MLIR 기반 프로젝트는 CMake 파일이 길고 매크로가 많으며, 링크 의존성이 빽빽합니다. 여기서 중요한 것은 문법 암기보다 \term{패턴 인식}입니다.
-
-\section{핵심 패턴}
-
-\begin{lstlisting}[style=cmake,title={전형적인 MLIR 설정}]
 find_package(MLIR REQUIRED CONFIG)
+\end{lstlisting}
+
+\begin{conceptbox}[title={각 명령의 역할}]
+\begin{itemize}[nosep]
+\item \code{project}: 프로젝트 이름과 언어를 선언한다.
+\item \code{add_library}: 재사용 가능한 타겟을 만든다.
+\item \code{add_executable}: 최종 바이너리를 만든다.
+\item \code{target_link_libraries}: 링크 의존성과 사용 전파를 선언한다.
+\item \code{find_package}: 외부 패키지의 경로와 설정을 불러온다.
+\end{itemize}
+\end{conceptbox}
+
+\section{\code{find_package}, \code{include}, \code{PUBLIC/PRIVATE}}
+
+\begin{lstlisting}[style=cmake,title={MLIR 프로젝트 최소 골격}]
 find_package(LLVM REQUIRED CONFIG)
+find_package(MLIR REQUIRED CONFIG)
 
-list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 
-include(TableGen)
 include(AddLLVM)
 include(AddMLIR)
+
+add_executable(my-opt tools/my-opt.cpp)
+target_link_libraries(my-opt PRIVATE MLIRIR MLIRParser MLIRPass)
 \end{lstlisting}
 
-\begin{lstlisting}[style=cmake]
-if(NOT LLVM_ENABLE_RTTI)
-  add_compile_options(-fno-rtti)
-endif()
-\end{lstlisting}
-
-\begin{conceptbox}[title={여기서 읽어야 할 포인트}]
-\begin{enumerate}[nosep]
-\item 패키지 설정을 어디서 찾는가
-\item 생태계 전용 매크로를 어떻게 로드하는가
-\item 프로젝트 컴파일 옵션이 상위 생태계와 어떤 제약을 공유하는가
-\item 어떤 라이브러리가 어떤 dialect/pass/transform 계층을 담당하는가
-\end{enumerate}
-\end{conceptbox}
-
-\section{라이브러리 계층을 읽는 법}
-
-\begin{lstlisting}[style=cmake]
-add_library(GaweeDialect
-  lib/Gawee/GaweeDialect.cpp
-)
-
-target_link_libraries(GaweeDialect
-  PUBLIC
-    MLIRIR
-    MLIRSupport
-)
-
-add_library(GaweeConversion
-  lib/Conversion/GaweeToLinalg.cpp
-)
-
-target_link_libraries(GaweeConversion
-  PUBLIC
-    GaweeDialect
-  PRIVATE
-    MLIRLinalgDialect
-    MLIRTransforms
-)
-\end{lstlisting}
-
-여기서 \code{GaweeConversion}의 공개 API가 \code{GaweeDialect} 타입을 노출한다면 \code{PUBLIC}이 맞고, 내부 lowering 구현만 \code{MLIRLinalgDialect}를 쓰면 \code{PRIVATE}가 맞습니다.
-
-\section{빈출 문제}
-
-\begin{tabularx}{\textwidth}{@{}lX@{}}
-\toprule
-\textbf{증상} & \textbf{보통 원인} \\
-\midrule
-\code{typeinfo for mlir::Pass} 관련 링크 에러 & RTTI 설정 불일치 \\
-\code{Could not find MLIRConfig.cmake} & \code{MLIR\_DIR} 또는 prefix 경로 미설정 \\
-\code{file not found} 헤더 에러 & include 경로 또는 generated header 경로 누락 \\
-\code{undefined reference} 패스 생성 함수 & 관련 라이브러리 미링크 \\
-\bottomrule
-\end{tabularx}
-
-\begin{quizbox}
-\textbf{Q11.} LLVM이 RTTI 없이 빌드되었는데 우리 프로젝트는 RTTI를 켠 상태다. 가장 가능성 높은 결과는?
-
-\textbf{정답}: 컴파일은 되더라도 링크 단계에서 \code{typeinfo} 관련 에러가 날 수 있다. 상위 생태계와 설정을 맞춰야 한다.
-\end{quizbox}
-
-\chapter{디버깅과 안티패턴}
-
-\section{문제가 생겼을 때 순서}
-
-\begin{enumerate}[nosep]
-\item configure 에러인가, build 에러인가, test/install 에러인가 구분한다.
-\item 문제가 난 타겟이 무엇인지 본다.
-\item 그 타겟의 소스, include path, compile definition, link dependency를 확인한다.
-\item 전역 변수와 매크로가 흐름을 숨기고 있지 않은지 본다.
-\end{enumerate}
-
-\section{유용한 명령}
-
-\begin{lstlisting}[style=shell,numbers=none]
-cmake -S . -B build --trace-expand
-cmake --build build --verbose
-cmake --graphviz=graph.dot -S . -B build
-ctest --test-dir build --output-on-failure
-\end{lstlisting}
-
-\section{피해야 할 안티패턴}
-
-\begin{itemize}[nosep]
-\item 루트에서 \code{include\_directories()}, \code{link\_libraries()}를 전역 살포
-\item 패키지 대신 절대 경로 하드코딩
-\item \code{file(GLOB ...)}로 소스를 자동 수집해서 변경 추적 불투명하게 만들기
-\item 옵션과 매크로를 함수처럼 섞어 타겟 경계를 흐리기
-\item ``일단 돌아가니까'' PUBLIC/PRIVATE를 대충 두기
-\end{itemize}
+\begin{pythonbox}
+\code{find_package(MLIR)}는 Python의 \code{import mlir}와 완전히 같지는 않지만, 감각적으로는 비슷하다. MLIR이 어디 설치되어 있고 어떤 include/lib/cmake 파일을 써야 하는지 현재 프로젝트로 가져오는 단계다.
+\end{pythonbox}
 
 \begin{warningbox}
-\code{file(GLOB)}는 데모에는 편하지만, 팀 프로젝트에서는 새 파일 추가가 configure 재실행과 엮여 예측 가능성을 떨어뜨린다. 명시적 소스 목록이 더 유지보수에 강하다.
+\code{PUBLIC}과 \code{PRIVATE}를 대충 쓰면 의존성이 엉켜서 나중에 디버깅이 어렵다. 라이브러리의 공개 API에 필요한 것은 \code{PUBLIC}, 내부 구현에서만 쓰는 것은 \code{PRIVATE}로 본다.
 \end{warningbox}
 
-\begin{quizbox}
-\textbf{Q12.} CMake 디버깅에서 가장 먼저 해야 할 질문은 ``어느 파일에서 문제가 났나?''가 아니라 무엇인가?
+\section{실전에서 자주 나는 에러}
 
-\textbf{정답}: ``어느 타겟의 어떤 속성에서 문제가 났나?'' 파일보다 타겟이 빌드 그래프의 기본 단위이기 때문이다.
-\end{quizbox}
-
-\chapter{당장 실전에 적용할 로드맵}
-
-\section{1단계: 작은 CLI 프로젝트}
-
-\begin{itemize}[nosep]
-\item \code{add\_executable} 하나로 시작
-\item \code{build/} 분리
-\item \code{target\_compile\_features}, \code{target\_include\_directories}, \code{target\_link\_libraries}를 익힌다
-\end{itemize}
-
-\section{2단계: 라이브러리 분리}
-
-\begin{itemize}[nosep]
-\item \code{kv\_core}, \code{kv\_cli}로 분리
-\item PUBLIC/PRIVATE를 의식적으로 설정
-\item 테스트 타겟 추가
-\end{itemize}
-
-\section{3단계: 외부 패키지와 설치}
-
-\begin{itemize}[nosep]
-\item \code{find\_package}와 imported target 사용
-\item \code{install()}과 export target 구성
-\item Presets로 팀 환경 고정
-\end{itemize}
-
-\section{4단계: 대형 생태계 읽기}
-
-\begin{itemize}[nosep]
-\item LLVM/MLIR CMake를 읽을 때 타겟 그래프를 먼저 본다
-\item 생태계 전용 매크로가 실제로 어떤 타겟을 만드는지 추적한다
-\item 에러를 보면 ``헤더 경로'', ``심볼 정의'', ``상위 설정 불일치'' 중 무엇인지 분류한다
-\end{itemize}
-
-\begin{summarybox}
-당신의 실제 목표는 ``CMake 문법을 많이 아는 사람''이 아니라, \term{복잡한 C++ 프로젝트를 겁먹지 않고 구조화하고 디버깅하는 사람}이 되는 것입니다. mini-kvstore 같은 작은 CLI에서 시작해, 라이브러리 분리, 테스트, 패키지, LLVM/MLIR 연동까지 자연스럽게 올라가면 됩니다.
-\end{summarybox}
-
-\chapter{Final Quiz}
-
-\begin{quizbox}[title={종합 문제 1}]
-다음 상황을 읽고 올바른 설계를 설명하라.
-
-\begin{itemize}[nosep]
-\item \code{kv\_core} 라이브러리가 공개 헤더에서 \code{fmt::format} 결과를 반환한다.
-\item \code{kv\_cli} 실행 파일이 \code{kv\_core}를 사용한다.
-\item 테스트 타겟 \code{store\_test}도 \code{kv\_core}를 사용한다.
-\end{itemize}
-
-\textbf{해설}: \code{kv\_core}는 \code{fmt::fmt}를 \code{PUBLIC}으로 링크해야 할 가능성이 높다. \code{kv\_cli}와 \code{store\_test}는 \code{kv\_core}만 링크하면 전파받을 수 있다.
-\end{quizbox}
-
-\begin{quizbox}[title={종합 문제 2}]
-다음 중 대형 프로젝트에서 가장 먼저 리팩터링해야 할 냄새는?
-\begin{enumerate}[label=\Alph*.]
-\item 타겟별 \code{target\_link\_libraries} 사용
-\item 전역 \code{include\_directories()} 남발
-\item \code{find\_package(fmt CONFIG REQUIRED)} 사용
-\item \code{install(EXPORT ...)} 제공
-\end{enumerate}
-\textbf{정답}: B
-\end{quizbox}
-
-\begin{quizbox}[title={종합 문제 3}]
-\code{gawee-opt} 링크 중 \code{undefined reference to mlir::linalg::GenericOp::create}가 난다. 가장 그럴듯한 원인은?
-
-\textbf{정답}: 관련 dialect/transform 라이브러리가 \code{target\_link\_libraries}에 빠졌을 가능성이 높다. 헤더 include만으로는 링크 심볼이 해결되지 않는다.
-\end{quizbox}
-
-\appendix
-
-\chapter{암기보다 중요한 체크포인트}
+\begin{longtable}{p{0.28\textwidth}p{0.28\textwidth}p{0.34\textwidth}}
+\toprule
+증상 & 원인 후보 & 먼저 볼 곳 \\
+\midrule
+\endhead
+\code{undefined reference} & 링크 라이브러리 누락 & \code{target_link_libraries} \\
+\code{file not found} & include 경로 누락 & \code{target_include_directories}, \code{find_package} \\
+\code{No rule to make target} & 타겟/생성 파일 연결 누락 & \code{add_subdirectory}, generated sources \\
+\code{RTTI mismatch} & 컴파일 옵션 불일치 & LLVM/MLIR 빌드 옵션, \code{-fno-rtti} 여부 \\
+\bottomrule
+\end{longtable}
 
 \begin{checklistbox}
-\begin{enumerate}
-\item 모든 것은 타겟 중심으로 읽고 쓴다.
-\item 전역 설정보다 타겟 속성을 우선한다.
-\item 패키지는 경로 하드코딩보다 imported target을 우선한다.
-\item configure/build/install/test의 단계를 섞지 않는다.
-\item 대형 프로젝트에서는 상위 생태계의 제약을 먼저 확인한다.
-\end{enumerate}
+\begin{itemize}[nosep]
+\item 소스와 빌드를 분리하는 out-of-source build를 유지할 것
+\item 실행파일보다 라이브러리 단위로 구조를 나눌 것
+\item MLIR을 찾지 못하면 먼저 \code{MLIR_DIR}과 \code{LLVM_DIR}를 의심할 것
+\item 에러가 링크 단계인지 컴파일 단계인지 먼저 분리할 것
+\end{itemize}
 \end{checklistbox}
 
-\chapter{빠른 명령 치트시트}
+\part{C++ 기본 개념}
 
-\begin{lstlisting}[style=shell,numbers=none]
-# Configure
-cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
+\chapter{C++를 읽을 때 가장 먼저 봐야 하는 것}
 
-# Build
-cmake --build build/dev
+C++ 코드를 읽을 때 변수 타입보다 먼저 봐야 하는 것은 \term{누가 소유하는가}, \term{언제 파괴되는가}, \term{런타임 디스패치인가 컴파일 타임 디스패치인가}다.
 
-# Run tests
-ctest --test-dir build/dev --output-on-failure
+\section{Template vs Virtual}
 
-# Install
-cmake --install build/dev --prefix ./stage
+\begin{conceptbox}[title={한 줄 요약}]
+\begin{itemize}[nosep]
+\item \term{Virtual}: 런타임에 어떤 자식이 올지 모를 때
+\item \term{Template}: 컴파일 타임에 타입이 이미 정해져 있을 때
+\end{itemize}
+\end{conceptbox}
 
-# Trace and debug
-cmake -S . -B build/dev --trace-expand
-cmake --build build/dev --verbose
+\begin{lstlisting}[style=cpp,title={Virtual: 런타임 디스패치}]
+class Serializer {
+public:
+    virtual ~Serializer() = default;
+    virtual std::string name() const = 0;
+};
+
+class JsonSerializer : public Serializer {
+public:
+    std::string name() const override { return "json"; }
+};
+
+void use(Serializer &s) {
+    std::cout << s.name() << "\n";
+}
 \end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={Template: 컴파일 타임 디스패치}]
+template <typename T>
+void dump(const T &value) {
+    std::cout << value.toString() << "\n";
+}
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item factory가 부모 포인터를 반환하면 virtual일 가능성이 높다.
+\item \code{OpConversionPattern<OpT>}처럼 타입이 템플릿 인자로 박혀 있으면 template 쪽이다.
+\item 성능보다 설계 이유를 먼저 본다. 런타임 선택이 필요하면 virtual이 맞다.
+\end{itemize}
+\end{summarybox}
+
+\section{포인터와 참조: 소유권 관점으로 보기}
+
+\begin{longtable}{p{0.22\textwidth}p{0.2\textwidth}p{0.48\textwidth}}
+\toprule
+형태 & 소유권 & 언제 쓰나 \\
+\midrule
+\endhead
+\code{T*} & 없음 & null 가능, 빌려서 잠깐 접근 \\
+\code{T\&} & 없음 & null이 되면 안 되는 별명 \\
+\code{std::unique_ptr<T>} & 단독 소유 & 수명 관리가 필요한 힙 객체 \\
+\code{std::shared_ptr<T>} & 공유 소유 & 정말 여러 주체가 함께 오래 살아야 할 때 \\
+\bottomrule
+\end{longtable}
+
+\begin{pythonbox}
+Python에서는 이름이 객체를 참조하고 GC가 나중에 정리한다. C++에서는 \term{누가 해제 책임을 갖는지}를 코드 구조에 드러내야 한다. 그래서 \code{unique_ptr}이 자주 나오고, raw pointer는 보통 ``내 것이 아니다''라는 신호다.
+\end{pythonbox}
+
+\section{Move Semantics}
+
+\begin{lstlisting}[style=cpp,title={std::move의 의미}]
+std::string name = "alice";
+std::vector<std::string> names;
+
+names.push_back(name);            // 복사
+names.push_back(std::move(name)); // 이동
+\end{lstlisting}
+
+\begin{conceptbox}[title={중요한 오해 바로잡기}]
+\code{std::move}는 실제로 이동하지 않는다. ``이 객체를 rvalue로 취급해도 된다''고 표시하는 캐스트에 가깝다. 실제 이동은 이동 생성자나 이동 대입 연산자가 수행한다.
+\end{conceptbox}
+
+\section{Value Semantics vs Reference Semantics}
+
+\begin{lstlisting}[style=cpp,title={복사를 피하는 기본 습관}]
+void process(const std::vector<int> &data); // 읽기 전용, 복사 없음
+void mutate(std::vector<int> &data);        // 수정 가능
+void consume(std::vector<int> data);        // 값으로 받으면 소유권 복사
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item 큰 객체를 읽기만 하면 \code{const T\&}
+\item 수정해야 하면 \code{T\&}
+\item 소유권을 넘기거나 복사본이 필요하면 값 전달
+\item 작은 값 타입은 그냥 값으로 받아도 된다
+\end{itemize}
+\end{summarybox}
+
+\section{LLVM 스타일 타입 시스템}
+
+LLVM/MLIR 코드에서는 C++ RTTI 대신 \code{isa}, \code{cast}, \code{dyn\_cast}를 많이 쓴다.
+
+\begin{lstlisting}[style=cpp,title={LLVM 캐스팅 3형제}]
+if (isa<mlir::FuncOp>(op)) {
+    auto func = cast<mlir::FuncOp>(op);
+}
+
+if (auto func = dyn_cast<mlir::FuncOp>(op)) {
+    // 성공했을 때만 func 사용
+}
+\end{lstlisting}
+
+\begin{warningbox}
+\code{cast<T>}는 실패하면 죽는다. 성공이 확실할 때만 쓴다. 확실하지 않으면 \code{dyn\_cast<T>}부터 쓴다.
+\end{warningbox}
+
+\chapter{Python 개발자가 헷갈리기 쉬운 C++ 지점}
+
+\section{헤더와 구현 분리}
+
+\begin{lstlisting}[style=cpp,title={헤더 파일}]
+#ifndef LOGGER_H
+#define LOGGER_H
+
+#include <string>
+
+class Logger {
+public:
+    void info(const std::string &msg);
+};
+
+#endif
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={구현 파일}]
+#include "Logger.h"
+#include <iostream>
+
+void Logger::info(const std::string &msg) {
+    std::cout << msg << "\n";
+}
+\end{lstlisting}
+
+\begin{pythonbox}
+Python은 파일 자체가 모듈이다. C++은 선언과 정의를 분리하면서 컴파일 시간을 줄이고, 여러 번 포함되는 상황을 제어한다.
+\end{pythonbox}
+
+\section{Forward Declaration}
+
+\begin{lstlisting}[style=cpp,title={가능한 경우 전방 선언}]
+class Engine;
+
+class Car {
+public:
+    void setEngine(Engine *engine);
+private:
+    Engine *engine_ = nullptr;
+};
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item 포인터/참조만 들고 있으면 전방 선언으로 충분한 경우가 많다.
+\item 객체 자체를 멤버로 들고 있으면 완전한 정의가 필요하다.
+\item 헤더 의존성을 줄이면 전체 빌드 시간이 줄어든다.
+\end{itemize}
+\end{summarybox}
+
+\section{CLI 도구의 기본 골격}
+
+\begin{lstlisting}[style=cpp,title={LLVM 스타일 CLI 도구}]
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/InitLLVM.h"
+
+llvm::cl::opt<std::string> inputFile(
+    llvm::cl::Positional,
+    llvm::cl::desc("<input file>"),
+    llvm::cl::Required);
+
+int main(int argc, char **argv) {
+    llvm::InitLLVM y(argc, argv);
+    llvm::cl::ParseCommandLineOptions(argc, argv);
+    return 0;
+}
+\end{lstlisting}
+
+\part{암기할 가치가 있는 C++ 패턴}
+
+\chapter{매일 보게 되는 패턴}
+
+\section{RAII}
+
+\begin{lstlisting}[style=cpp,title={자원 획득과 해제를 객체 수명에 묶기}]
+{
+    std::ifstream file("data.txt");
+    std::string line;
+    while (std::getline(file, line)) {
+        // 사용
+    }
+} // file 소멸자에서 자동 close
+\end{lstlisting}
+
+\begin{conceptbox}[title={핵심}]
+RAII는 ``자원을 얻자마자 관리 객체 안에 넣고, 해제는 소멸자에 맡긴다''는 습관이다. C++에서 \code{finally} 대신 소멸자가 중요한 이유다.
+\end{conceptbox}
+
+\section{Rule of Zero}
+
+\begin{lstlisting}[style=cpp,title={가능하면 직접 소멸자를 쓰지 않는다}]
+struct Config {
+    std::string name;
+    std::vector<int> values;
+    std::unique_ptr<int> handle;
+};
+\end{lstlisting}
+
+\begin{summarybox}
+멤버가 이미 자기 자원을 잘 관리한다면, 생성자/소멸자/복사/이동을 굳이 직접 만들지 않는 편이 더 안전하다.
+\end{summarybox}
+
+\section{Factory + Virtual Interface}
+
+\begin{lstlisting}[style=cpp,title={생성과 사용 분리}]
+class Optimizer {
+public:
+    virtual ~Optimizer() = default;
+    virtual void step() = 0;
+};
+
+std::unique_ptr<Optimizer> createOptimizer(const Config &config) {
+    if (config.type == "adam")
+        return std::make_unique<Adam>(config.lr);
+    return std::make_unique<SGD>(config.lr);
+}
+\end{lstlisting}
+
+\section{Optional 반환}
+
+\begin{lstlisting}[style=cpp,title={실패 가능성을 타입으로 드러내기}]
+std::optional<User> findUser(const std::string &name) {
+    auto it = db.find(name);
+    if (it != db.end())
+        return it->second;
+    return std::nullopt;
+}
+\end{lstlisting}
+
+\section{string\_view / StringRef}
+
+\begin{lstlisting}[style=cpp,title={복사 없이 문자열 빌려보기}]
+void log(std::string_view msg) {
+    std::cout << msg << "\n";
+}
+\end{lstlisting}
+
+\begin{warningbox}
+\code{string\_view}는 소유하지 않는다. 원본 문자열보다 오래 살면 dangling view가 된다.
+\end{warningbox}
+
+\section{constexpr + static\_assert}
+
+\begin{lstlisting}[style=cpp,title={컴파일 타임 계산과 검증}]
+constexpr int factorial(int n) {
+    return (n <= 1) ? 1 : n * factorial(n - 1);
+}
+
+struct PacketHeader {
+    uint32_t size;
+    uint16_t type;
+};
+
+static_assert(std::is_trivially_copyable_v<PacketHeader>,
+              "PacketHeader must be trivially copyable");
+\end{lstlisting}
+
+\begin{conceptbox}[title={\code{std::is_same\_v}가 뜻하는 것}]
+\code{std::is_same\_v<A, B>}는 ``A와 B가 완전히 같은 타입인가''를 나타내는 컴파일 타임 bool 값이다. 함수 호출이 아니라 타입에 대한 질문이다.
+\end{conceptbox}
+
+\section{Scope Guard와 Custom Deleter}
+
+\begin{lstlisting}[style=cpp,title={Scope Guard의 최소 형태}]
+struct Resource {
+    int handle;
+};
+
+Resource *acquire();
+void release(Resource *r);
+
+struct ScopeGuard {
+    std::function<void()> fn;
+    ~ScopeGuard() { fn(); }
+};
+
+void process() {
+    Resource *resource = acquire();
+    ScopeGuard guard{[&]() { release(resource); }};
+    // 중간에 return하거나 예외가 나도 release 실행
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={unique\_ptr + custom deleter}]
+auto resource = std::unique_ptr<Resource, decltype(&release)>(
+    acquire(), &release
+);
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item cleanup을 일으키는 것은 함수 포인터 자체가 아니라 \term{관리 객체의 소멸자}다.
+\item \code{decltype(\&release)}는 \code{release} 함수 포인터의 타입을 자동으로 가져온다.
+\item \code{unique_ptr}는 ``자원 + 해제 방법''을 같이 들고 있는 RAII 객체다.
+\end{itemize}
+\end{summarybox}
+
+\section{CRTP}
+
+\begin{lstlisting}[style=cpp,title={CRTP의 기본 모양}]
+template <typename Derived>
+class Printable {
+public:
+    void print() const {
+        const auto &self = static_cast<const Derived &>(*this);
+        std::cout << self.toString() << "\n";
+    }
+};
+
+class Dog : public Printable<Dog> {
+public:
+    std::string toString() const { return "Dog"; }
+};
+\end{lstlisting}
+
+\begin{conceptbox}[title={왜 쓰는가}]
+CRTP는 부모가 자식 타입을 템플릿 인자로 받아서, virtual 없이 자식 메서드에 접근하는 패턴이다. MLIR의 \code{PassWrapper<MyPass, OperationPass<ModuleOp>>}가 대표적인 예다.
+\end{conceptbox}
+
+\section{반복자 무효화 방지}
+
+\begin{lstlisting}[style=cpp,title={erase가 다음 반복자를 반환한다}]
+for (auto it = vec.begin(); it != vec.end(); ) {
+    if (bad(*it))
+        it = vec.erase(it);
+    else
+        ++it;
+}
+\end{lstlisting}
+
+\section{한 번에 외울 패턴 묶음}
+
+\begin{longtable}{p{0.26\textwidth}p{0.26\textwidth}p{0.38\textwidth}}
+\toprule
+상황 & 먼저 떠올릴 것 & 대표 패턴 \\
+\midrule
+\endhead
+자원 정리 & 소멸자 & RAII, Scope Guard, unique\_ptr \\
+런타임 다형성 & 부모 인터페이스 & virtual + factory \\
+컴파일 타임 분기 & 타입 정보 & template, constexpr, type traits \\
+복사 줄이기 & view/참조 & const ref, string\_view, StringRef \\
+공통 로직 재사용 & 정적 다형성 & CRTP \\
+\bottomrule
+\end{longtable}
+
+\part{MLIR을 위한 C++}
+
+\chapter{MLIR 큰 그림}
+
+MLIR은 ``IR을 하나만 두는 시스템''이 아니라 \term{여러 dialect와 여러 단계의 lowering을 조합하는 인프라}다.
+
+\section{핵심 개념}
+
+\begin{longtable}{p{0.2\textwidth}p{0.7\textwidth}}
+\toprule
+개념 & 의미 \\
+\midrule
+\endhead
+Dialect & 연산과 타입의 집합. 예: \code{func}, \code{arith}, \code{linalg} \\
+Operation & IR의 기본 단위. 결과 값, 속성, 피연산자, region을 가질 수 있다 \\
+Pass & IR을 읽고 변형하는 단계 \\
+Pattern Rewriting & 특정 op를 다른 op들로 치환하는 규칙 기반 변환 \\
+TableGen & op, type, attr, pass 선언을 기술하는 메타 언어 \\
+\bottomrule
+\end{longtable}
+
+\begin{conceptbox}[title={왜 MLIR이 C++과 잘 맞는가}]
+MLIR은 타입이 풍부하고, 템플릿과 CRTP를 많이 활용하며, 수많은 작은 객체의 수명과 성능을 정교하게 다룬다. 그래서 C++ 기본기가 곧 MLIR 생산성으로 이어진다.
+\end{conceptbox}
+
+\section{대표 작업 흐름}
+
+\begin{lstlisting}[style=shell,numbers=none,title={MLIR 개발의 반복 루프}]
+TableGen 수정
+-> generated headers / cpp 재생성
+-> C++ dialect / pass 구현 수정
+-> 빌드
+-> mlir-opt 또는 내 툴로 테스트
+\end{lstlisting}
+
+\chapter{TableGen과 코드 생성}
+
+\section{TableGen은 왜 필요한가}
+
+MLIR 코드는 반복이 많다. op 이름, operands, results, traits, builders, assembly format 같은 정보는 선언적으로 적고, 나머지는 생성 코드에 맡기는 편이 낫다.
+
+\begin{lstlisting}[style=cpp,title={개념적 예시: TableGen이 표현하는 것}]
+def My_AddOp : My_Op<"add", [Pure]> {
+  let arguments = (ins I32:$lhs, I32:$rhs);
+  let results = (outs I32:$result);
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+}
+\end{lstlisting}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item TableGen은 사람이 반복 선언을 쓰고
+\item 생성 코드는 builder, accessor, parser/printer 보일러플레이트를 담당한다
+\item hand-written C++는 검증 로직, 리라이트 로직, 특수한 동작에 집중한다
+\end{itemize}
+\end{summarybox}
+
+\section{실전 감각}
+
+\begin{itemize}[nosep]
+\item op 정의를 바꾸면 generated 파일이 함께 바뀐다.
+\item 에러가 generated 파일에서 보이더라도 원인은 원래의 \code{.td} 선언인 경우가 많다.
+\item 빌드 에러를 읽을 때는 ``내가 선언한 op 시그니처가 생성 코드와 맞는가''를 먼저 본다.
+\end{itemize}
+
+\chapter{MLIR 프로젝트의 CMake 구조}
+
+\section{최소 골격}
+
+\begin{lstlisting}[style=cmake,title={MLIR 도구 프로젝트의 최소 뼈대}]
+cmake_minimum_required(VERSION 3.20)
+project(MyMlirProject LANGUAGES CXX)
+
+find_package(LLVM REQUIRED CONFIG)
+find_package(MLIR REQUIRED CONFIG)
+
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+include(AddLLVM)
+include(AddMLIR)
+
+add_subdirectory(lib)
+add_subdirectory(tools)
+\end{lstlisting}
+
+\begin{lstlisting}[style=cmake,title={도구 타겟 예시}]
+add_executable(my-opt my-opt.cpp)
+target_link_libraries(my-opt
+  PRIVATE
+    MyDialect
+    MyConversion
+    MLIRIR
+    MLIRParser
+    MLIRPass
+)
+\end{lstlisting}
+
+\section{패스 개발 흐름}
+
+\begin{lstlisting}[style=cpp,title={Lowering 패턴의 전형적인 모양}]
+class MyOpLowering : public OpConversionPattern<MyOp> {
+public:
+    using OpConversionPattern<MyOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(
+        MyOp op,
+        OpAdaptor adaptor,
+        ConversionPatternRewriter &rewriter) const override {
+        rewriter.replaceOpWithNewOp<arith::AddIOp>(
+            op, adaptor.getLhs(), adaptor.getRhs());
+        return success();
+    }
+};
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp,title={PassWrapper를 이용한 패스 껍데기}]
+struct LowerMyToArithPass
+    : public PassWrapper<LowerMyToArithPass, OperationPass<ModuleOp>> {
+    void runOnOperation() override {
+        RewritePatternSet patterns(&getContext());
+        patterns.add<MyOpLowering>(&getContext());
+        // conversion setup ...
+    }
+};
+\end{lstlisting}
+
+\begin{conceptbox}[title={여기서 C++ 개념이 어떻게 연결되는가}]
+\begin{itemize}[nosep]
+\item \code{OpConversionPattern<MyOp>}는 template다.
+\item \code{PassWrapper<Derived, Base>}는 CRTP다.
+\item \code{runOnOperation()}은 virtual override다.
+\item \code{RewritePatternSet}과 각종 IR 객체는 수명 관리가 중요하므로 참조와 포인터 감각이 필요하다.
+\end{itemize}
+\end{conceptbox}
+
+\section{MLIR 학습 체크리스트}
+
+\begin{checklistbox}
+\begin{itemize}[nosep]
+\item dialect, operation, pass, pattern의 역할을 구분할 수 있는가
+\item \code{mlir-opt}로 패스를 실행해 볼 수 있는가
+\item TableGen 선언과 generated 코드의 관계를 설명할 수 있는가
+\item CMake에서 MLIR 라이브러리를 링크하는 최소 구성을 쓸 수 있는가
+\item 패턴 하나와 패스 하나를 새로 추가하는 흐름을 머릿속에서 그릴 수 있는가
+\end{itemize}
+\end{checklistbox}
+
+\chapter{빠르게 익숙해지기 위한 최종 암기표}
+
+\begin{summarybox}
+\begin{itemize}[nosep]
+\item CMake는 타겟 그래프를 선언하는 도구다.
+\item C++를 읽을 때는 문법보다 수명, 소유권, 디스패치 방식을 먼저 본다.
+\item 실전에서 가장 자주 보는 패턴은 RAII, unique\_ptr, const ref, optional, factory, virtual, CRTP다.
+\item MLIR 코드는 template, CRTP, virtual, generated code가 한 코드베이스에서 동시에 섞여 나온다.
+\item 막힐 때는 ``이 객체는 누가 소유하는가'', ``이 호출은 런타임인가 컴파일 타임인가'', ``이 코드는 generated인가 hand-written인가''를 먼저 물어본다.
+\end{itemize}
+\end{summarybox}
+
+\begin{quizbox}
+\textbf{Q1.} \code{unique_ptr<Resource, decltype(\&release)>}에서 cleanup을 실제로 일으키는 것은 무엇인가? \\
+\textbf{A.} 함수 포인터의 소멸이 아니라 \code{unique_ptr} 소멸자이다.
+
+\textbf{Q2.} \code{PassWrapper<MyPass, OperationPass<ModuleOp>>}는 왜 CRTP인가? \\
+\textbf{A.} 부모 템플릿이 자식 타입 \code{MyPass}를 인자로 받아 compile-time에 자식 타입을 알기 때문이다.
+
+\textbf{Q3.} MLIR CMake에서 가장 먼저 확인할 외부 의존성 선언은 무엇인가? \\
+\textbf{A.} 보통 \code{find_package(LLVM REQUIRED CONFIG)}와 \code{find_package(MLIR REQUIRED CONFIG)}다.
+\end{quizbox}
+
+\backmatter
+
+\chapter{다음 단계}
+
+이 책을 한 번 읽고 끝내지 말고, 실제 코드에서 반복해서 대응시키는 것이 중요하다.
+
+\begin{enumerate}[nosep]
+\item \code{mlir-opt}나 프로젝트 전용 도구의 \code{main()}을 읽어 본다.
+\item dialect 하나의 TableGen 정의와 생성 결과를 연결해서 본다.
+\item lowering 패턴 하나를 처음부터 끝까지 추적한다.
+\item CMake에서 타겟 하나가 어떤 라이브러리를 타고 들어가는지 따라가 본다.
+\end{enumerate}
+
+이 과정을 세 번 정도 반복하면, C++ 문법이 아니라 코드 구조가 먼저 보이기 시작한다.
 
 \end{document}
