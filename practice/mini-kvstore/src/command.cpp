@@ -20,4 +20,32 @@ void GetCommand::execute(KVStore& store) {
   return; 
 }
 
+void DeleteCommand::execute(KVStore &store) {
+  auto res = store.remove(key_);
+  if (!res) {
+    std::cout << "[ERROR]: " << key_ << " does not exist" << std::endl;
+  } else {
+    std::cout << "OK" << std::endl; 
+  }
+  return; 
+} 
+
+void ListCommand::execute(KVStore &store) {
+  // print all elements in data_. 
+  auto list = store.list();
+  for (auto &[k, v] : list) {
+    std::cout << k << "=" << v << std::endl; 
+  }
+  return; 
+}
+
+void CountCommand::execute(KVStore &store) {
+  auto cnt = store.count(); 
+  std::cout << cnt << std::endl; 
+}
+
+void ExportCommand::execute(KVStore &store) {
+  std::cout << "TODO" << std::endl; 
+}
+
 }

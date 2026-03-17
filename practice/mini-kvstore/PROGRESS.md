@@ -164,13 +164,13 @@
 
 **목표**: `DeleteCommand`, `ListCommand`, `CountCommand`, `ExportCommand`를 선언 + 구현한다.
 
-- [ ] `command.h`에 4개 클래스 선언 추가
-- [ ] `command.cpp`에 각 `execute` 구현:
+- [x] `command.h`에 4개 클래스 선언 추가
+- [x] `command.cpp`에 각 `execute` 구현:
   - `DeleteCommand`: `store.remove(key_)` → 성공이면 "OK", 실패면 에러
   - `ListCommand`: `store.list()` 순회하면서 `key = value` 출력
   - `CountCommand`: `store.count()` 출력
   - `ExportCommand`: 일단 `std::cout << "TODO" << std::endl;`
-- [ ] 빌드 확인
+- [x] 빌드 확인
 
 **검증**: `cmake --build build` 성공.
 
@@ -266,7 +266,7 @@
 
 ---
 
-## 선택 연습: Template 함수 하나 써보기 (20분)
+## 14단계: Template 함수 하나 써보기 (20분)
 
 **목표**: 이 프로젝트 흐름을 깨지 않으면서, 중복 출력 로직을 템플릿 함수로 빼 보는 연습을 한다.
 
@@ -291,7 +291,67 @@
 
 ---
 
-## 전체: ~6.5시간 (13단계 x 30분)
+## 15단계: `constexpr`로 상수 다루기 (15분)
+
+**목표**: 문자열 리터럴과 매직 값을 코드 여기저기에 흩뿌리지 않고, 컴파일 타임 상수로 정리하는 습관을 익힌다.
+
+- [ ] `main.cpp` 또는 적절한 헤더에 기본 저장 파일명을 `constexpr`로 선언
+  ```cpp
+  constexpr const char* kDefaultStorePath = "store.dat";
+  ```
+- [ ] `KVStore store("store.dat");`처럼 직접 쓰던 문자열을 `kDefaultStorePath`로 바꿔 본다
+- [ ] 테스트용 파일명도 `constexpr` 상수로 빼 본다
+- [ ] 생각해 보기: 왜 이런 값은 `std::string` 변수보다 `constexpr` 상수가 더 어울리는가?
+
+**검증**: 빌드와 실행 결과는 그대로이고, 파일 경로 문자열이 한 곳에서 관리된다.
+
+**배우는 것**: 컴파일 타임 상수, 매직 문자열 제거, 의미 있는 이름으로 상수 표현하기.
+
+---
+
+## 16단계: RAII와 Move Semantics 손으로 확인하기 (25분)
+
+**목표**: 파일 스트림에서 이미 쓰고 있는 RAII 개념을 `std::unique_ptr`와 연결해서 이해하고, move가 왜 필요한지 직접 확인한다.
+
+- [ ] `main.cpp`에 `std::unique_ptr<kv::Command>` 하나를 만든다
+  ```cpp
+  auto cmd = std::make_unique<kv::SetCommand>("name", "alice");
+  ```
+- [ ] `cmd->execute(store);`를 호출해 본다
+- [ ] 같은 포인터를 다른 변수로 옮겨 본다
+  ```cpp
+  auto moved = std::move(cmd);
+  ```
+- [ ] move 후 `cmd`는 비어 있고, `moved`만 소유권을 가진다는 것을 출력으로 확인한다
+- [ ] 생각해 보기: 왜 `unique_ptr`는 복사(copy)보다 이동(move)만 허용하는가?
+
+**검증**: `std::move` 후 원래 포인터는 비고, 새 포인터로만 `execute()`를 호출할 수 있다.
+
+**배우는 것**: RAII를 사용자 수준 소유권 관리에 적용하는 방법, move semantics가 필요한 이유, `unique_ptr`가 왜 안전한지.
+
+**연결 포인트**: `ifstream`/`ofstream`도 같은 RAII 철학으로 스코프가 끝나면 자동 정리된다.
+
+---
+
+## 17단계: `vector`와 다형성 함께 쓰기 (25분)
+
+**목표**: 여러 종류의 `Command` 객체를 한 컨테이너에 담고, 공통 인터페이스로 순회 실행하는 현대 C++ 패턴을 익힌다.
+
+- [ ] `std::vector<std::unique_ptr<Command>>`를 선언한다
+- [ ] `SetCommand`, `GetCommand`, `DeleteCommand` 같은 서로 다른 타입을 `push_back(std::make_unique<...>())`로 넣어 본다
+- [ ] `for (const auto& command : commands)`로 순회하면서 `command->execute(store);`를 호출한다
+- [ ] 생각해 보기: 왜 `std::vector<Command>`가 아니라 `std::vector<std::unique_ptr<Command>>`를 써야 하는가?
+- [ ] 생각해 보기: 왜 이 구조에서 virtual destructor가 필요한가?
+
+**검증**: 서로 다른 커맨드 타입이 하나의 `vector` 안에 담기고, 순회 실행 시 올바른 `execute()`가 호출된다.
+
+**배우는 것**: 컨테이너 + 다형성 조합, object slicing 회피, 소유권을 가진 포인터 컨테이너 패턴.
+
+**힌트**: 지금 `main.cpp`의 테스트 코드는 이 패턴의 아주 작은 예시다. 이걸 더 확장해서 `DeleteCommand`, `CountCommand`까지 넣어 보면 좋다.
+
+---
+
+## 전체: ~8시간 (17단계, 마지막 4단계는 짧은 확장 연습)
 
 이틀에 나눠서 해도 좋다.
 
@@ -310,3 +370,7 @@
 | 11 | Exporter + CSV | `ostream &`, Strategy 패턴 |
 | 12 | JSON + 팩토리 | Factory 두 번째 연습 |
 | 13 | 에러 처리 + test.sh | 방어적 프로그래밍 |
+| 14 | Template 출력 함수 | 함수 템플릿, 헤더에 구현 두기 |
+| 15 | `constexpr` 상수 정리 | 컴파일 타임 상수, 매직 값 제거 |
+| 16 | RAII + move semantics | `unique_ptr`, 소유권 이동, 자동 정리 |
+| 17 | `vector` + 다형성 | object slicing 회피, 컨테이너 + 가상 함수 |
