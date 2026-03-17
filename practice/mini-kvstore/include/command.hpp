@@ -1,6 +1,4 @@
-#ifndef KV_COMMAND_HPP 
-#define KV_COMMAND_HPP
-
+#pragma once 
 #include <string>
 #include "store.hpp"
 
@@ -35,5 +33,3 @@ private:
 };
 
 }
-
-#endif 

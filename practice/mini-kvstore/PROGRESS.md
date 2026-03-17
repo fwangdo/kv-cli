@@ -143,9 +143,9 @@
 
 **목표**: 두 커맨드의 `execute`를 구현하고 `main.cpp`에서 직접 테스트한다.
 
-- [ ] `command.cpp`에 `SetCommand::execute` 구현: `store.set(key_, value_)` 후 `"OK"` 출력
-- [ ] `command.cpp`에 `GetCommand::execute` 구현: `store.get(key_)` → 값 있으면 출력, 없으면 에러 메시지
-- [ ] `main.cpp`에서 `SetCommand`와 `GetCommand`를 직접 만들어 호출
+- [x] `command.cpp`에 `SetCommand::execute` 구현: `store.set(key_, value_)` 후 `"OK"` 출력
+- [x] `command.cpp`에 `GetCommand::execute` 구현: `store.get(key_)` → 값 있으면 출력, 없으면 에러 메시지
+- [x] `main.cpp`에서 `SetCommand`와 `GetCommand`를 직접 만들어 호출
   ```cpp
   SetCommand set("name", "alice");
   set.execute(store);
