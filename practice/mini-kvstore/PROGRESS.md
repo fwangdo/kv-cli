@@ -182,20 +182,20 @@
 
 **목표**: CLI 인자를 파싱해서 커맨드 객체를 생성하는 팩토리 함수 작성. `main.cpp`를 CLI답게 변경.
 
-- [ ] `command.h`에 팩토리 함수 선언: `std::unique_ptr<Command> parseCommand(int argc, char* argv[]);`
-- [ ] `command.cpp`에 구현:
+- [x] `command.h`에 팩토리 함수 선언: `std::unique_ptr<Command> parseCommand(int argc, char* argv[]);`
+- [x] `command.cpp`에 구현:
   - `argc < 2` → `nullptr` 반환 (또는 에러 출력)
   - `argv[1]`이 "set"이면 `make_unique<SetCommand>(argv[2], argv[3])` (인자 수 체크 포함)
   - 나머지 커맨드도 동일하게
   - 모르는 커맨드 → 에러 출력 후 `nullptr`
-- [ ] `main.cpp` 재작성:
+- [x] `main.cpp` 재작성:
   ```cpp
   auto cmd = parseCommand(argc, argv);
   if (!cmd) return 1;
   KVStore store("store.dat");
   cmd->execute(store);
   ```
-- [ ] 테스트: `./build/kvstore set name alice` → `./build/kvstore get name`
+- [x] 테스트: `./build/kvstore set name alice` → `./build/kvstore get name`
 
 **검증**: 터미널에서 진짜 CLI처럼 동작한다.
 

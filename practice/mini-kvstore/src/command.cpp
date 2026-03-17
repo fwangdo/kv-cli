@@ -54,12 +54,50 @@ std::unique_ptr<Command> parseCommand(int argc, char **argv) {
     return nullptr; 
   }
 
-  if (argv[1] == "set") {
+  std::string cmd = argv[1]; 
+  if (cmd == "set") {
     if (argc != 4) {
       return nullptr; 
     }
     return std::make_unique<SetCommand>(argv[2], argv[3]); 
   }
+  // get
+  if (cmd == "get") {
+    if (argc != 3) {
+      return nullptr; 
+    }
+    return std::make_unique<GetCommand>(argv[2]); 
+  }
+  // delete 
+  if (cmd == "delete") {
+    if (argc != 3) {
+      return nullptr; 
+    }
+    return std::make_unique<DeleteCommand>(argv[2]); 
+  }
+  // list 
+  if (cmd == "list") {
+    if (argc != 2) {
+      return nullptr; 
+    }
+    return std::make_unique<ListCommand>(); 
+  }
+  // count
+  if (cmd == "count") {
+    if (argc != 2) {
+      return nullptr; 
+    }
+    return std::make_unique<CountCommand>(); 
+  }
+  // export 
+  if (cmd == "export") {
+    if (argc != 3) {
+      return nullptr; 
+    }
+    return std::make_unique<ExportCommand>(); 
+  }
+
+  return nullptr; 
 }
 
 }

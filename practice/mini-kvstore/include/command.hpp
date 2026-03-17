@@ -56,4 +56,7 @@ public:
   void execute(KVStore &store) override; 
 };
 
+// factory
+std::unique_ptr<Command> parseCommand(int argc, char* argv[]); 
+
 }
