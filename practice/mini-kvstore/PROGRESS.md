@@ -125,13 +125,13 @@
 
 **목표**: `command.h`에 추상 클래스 `Command`와 구체 클래스 `SetCommand`, `GetCommand`를 선언한다.
 
-- [ ] `command.h`에 `#include "store.h"` 추가
-- [ ] 추상 클래스 `Command` 정의:
+- [x] `command.h`에 `#include "store.h"` 추가
+- [x] 추상 클래스 `Command` 정의:
   - `virtual ~Command() = default;`
   - `virtual void execute(KVStore &store) = 0;`
-- [ ] `SetCommand : public Command` 선언 — 생성자에서 `key`, `value` 받기, `execute` 선언 (`override`)
-- [ ] `GetCommand : public Command` 선언 — 생성자에서 `key` 받기, `execute` 선언 (`override`)
-- [ ] 빌드해서 컴파일 에러 없는지 확인
+- [x] `SetCommand : public Command` 선언 — 생성자에서 `key`, `value` 받기, `execute` 선언 (`override`)
+- [x] `GetCommand : public Command` 선언 — 생성자에서 `key` 받기, `execute` 선언 (`override`)
+- [x] 빌드해서 컴파일 에러 없는지 확인
 
 **검증**: `cmake --build build` 성공 (링크 에러는 OK).
 
