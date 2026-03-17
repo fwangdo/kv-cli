@@ -152,7 +152,7 @@
   GetCommand get("name");
   get.execute(store);
   ```
-- [ ] 빌드 + 실행해서 결과 확인
+- [x] 빌드 + 실행해서 결과 확인
 
 **검증**: "OK" 출력 후 "alice" 출력.
 
@@ -263,6 +263,31 @@
 **검증**: `./test.sh` → "ALL TESTS PASSED"
 
 **배우는 것**: 방어적 프로그래밍, 에러 메시지 일관성, 셸 스크립트 기초 (`set -e`, 변수, `$?`).
+
+---
+
+## 선택 연습: Template 함수 하나 써보기 (20분)
+
+**목표**: 이 프로젝트 흐름을 깨지 않으면서, 중복 출력 로직을 템플릿 함수로 빼 보는 연습을 한다.
+
+- [ ] `main.cpp` 또는 별도 헤더에 템플릿 함수 추가
+  ```cpp
+  template <typename MapLike>
+  void printEntries(const MapLike& data) {
+      for (const auto& [key, value] : data) {
+          std::cout << key << " = " << value << '\n';
+      }
+  }
+  ```
+- [ ] `store.list()`를 직접 순회하던 코드를 `printEntries(store.list())`로 바꿔 본다
+- [ ] 빌드해서 템플릿 함수가 실제로 인스턴스화되는지 확인한다
+- [ ] 생각해 보기: 왜 템플릿 구현은 보통 `.cpp`보다 헤더에 두는가?
+
+**검증**: `printEntries(store.list())` 호출 시 기존과 동일하게 `key = value`가 출력된다.
+
+**배우는 것**: 함수 템플릿 기본 문법, 타입을 나중에 결정하는 방식, 왜 템플릿 구현이 헤더에 자주 들어가는지.
+
+**이 예제가 맞는 이유**: `std::map`뿐 아니라 나중에 비슷한 key/value 컨테이너에도 같은 출력 함수를 재사용할 수 있다.
 
 ---
 

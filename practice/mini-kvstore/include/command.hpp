@@ -1,5 +1,6 @@
 #pragma once 
 #include <string>
+#include <utility>
 #include "store.hpp"
 
 namespace kv {
@@ -30,6 +31,29 @@ public:
 
 private:
   std::string key_; 
+};
+
+class DeleteCommand : public Command {
+public:
+  explicit DeleteCommand(const std::string &key): key_(key) {}; 
+  void execute(KVStore &store) override; 
+private:
+  std::string key_; 
+};
+
+class ListCommand : public Command {
+public:
+  void execute(KVStore &store) override; 
+}; 
+
+class CountCommand : public Command {
+public:
+  void execute(KVStore &store) override; 
+};
+
+class ExportCommand : public Command {
+public:
+  void execute(KVStore &store) override; 
 };
 
 }
