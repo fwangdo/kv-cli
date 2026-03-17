@@ -47,19 +47,19 @@
 
 **목표**: `store.h`에 클래스 선언만 작성한다. 구현은 아직 안 한다.
 
-- [ ] 필요한 표준 헤더 `#include` — `<map>`, `<string>`, `<optional>`
-- [ ] `class KVStore` 선언
-- [ ] `public`: `explicit` 생성자 (매개변수: `const std::string &path`)
-- [ ] `public`: `set(const std::string &key, const std::string &value)` → `void`
-- [ ] `public`: `get(const std::string &key)` → `std::optional<std::string>`
-- [ ] `public`: `remove(const std::string &key)` → `bool`
-- [ ] `public`: `list()` → `const std::map<std::string, std::string>&`
-- [ ] `public`: `count()` → `size_t`
-- [ ] `public`: `save()` → `void`
-- [ ] `private`: `std::map<std::string, std::string> data_`
-- [ ] `private`: `std::string path_`
-- [ ] `private`: `void load()`
-- [ ] 빌드해서 컴파일 에러 없는지 확인
+- [x] 필요한 표준 헤더 `#include` — `<map>`, `<string>`, `<optional>`
+- [x] `class KVStore` 선언
+- [x] `public`: `explicit` 생성자 (매개변수: `const std::string &path`)
+- [x] `public`: `set(const std::string &key, const std::string &value)` → `void`
+- [x] `public`: `get(const std::string &key)` → `std::optional<std::string>`
+- [x] `public`: `remove(const std::string &key)` → `bool`
+- [x] `public`: `list()` → `const std::map<std::string, std::string>&`
+- [x] `public`: `count()` → `size_t`
+- [x] `public`: `save()` → `void`
+- [x] `private`: `std::map<std::string, std::string> data_`
+- [x] `private`: `std::string path_`
+- [x] `private`: `void load()`
+- [x] 빌드해서 컴파일 에러 없는지 확인
 
 **검증**: `cmake --build build` 성공 (링크 에러는 OK — 구현이 아직 없으니까).
 
@@ -71,16 +71,16 @@
 
 **목표**: `store.cpp`에서 각 메서드를 구현한다. 파일 I/O는 아직 빈 함수.
 
-- [ ] `store.cpp`에 `#include "store.h"` 추가
-- [ ] 생성자: `path_`에 경로 저장, `load()` 호출
-- [ ] `set`: `data_[key] = value;`
-- [ ] `get`: `data_.find(key)` → 찾으면 `it->second`, 못 찾으면 `std::nullopt`
-- [ ] `remove`: `data_.erase(key)` → 반환값이 1이면 `true`, 0이면 `false`
-- [ ] `list`: `return data_;`
-- [ ] `count`: `return data_.size();`
-- [ ] `load()`: 일단 빈 함수 `{}`
-- [ ] `save()`: 일단 빈 함수 `{}`
-- [ ] `main.cpp`에서 `KVStore store("store.dat");`를 만들고 `set`/`get`/`list`/`count` 직접 호출, 결과 출력
+- [x] `store.cpp`에 `#include "store.h"` 추가
+- [x] 생성자: `path_`에 경로 저장, `load()` 호출
+- [x] `set`: `data_[key] = value;`
+- [x] `get`: `data_.find(key)` → 찾으면 `it->second`, 못 찾으면 `std::nullopt`
+- [x] `remove`: `data_.erase(key)` → 반환값이 1이면 `true`, 0이면 `false`
+- [x] `list`: `return data_;`
+- [x] `count`: `return data_.size();`
+- [x] `load()`: 일단 빈 함수 `{}`
+- [x] `save()`: 일단 빈 함수 `{}`
+- [x] `main.cpp`에서 `KVStore store("store.dat");`를 만들고 `set`/`get`/`list`/`count` 직접 호출, 결과 출력
 
 **검증**: 빌드 + 실행해서 set한 값이 get으로 나오는지, list가 출력되는지, count가 맞는지 확인.
 
