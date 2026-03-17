@@ -10,12 +10,12 @@
 
 **목표**: 폴더와 빈 파일을 전부 만든다. 코드는 아직 안 쓴다.
 
-- [ ] `practice/mini-kvstore/` 아래에 `include/`, `src/` 디렉토리 생성
-- [ ] 빈 파일 생성: `src/main.cpp`, `src/store.cpp`, `src/command.cpp`, `src/exporter.cpp`
-- [ ] 빈 헤더 생성: `include/store.h`, `include/command.h`, `include/exporter.h`
-- [ ] `src/main.cpp`에 "hello"를 출력하고 0을 반환하는 최소한의 코드 작성
-- [ ] 나머지 `.cpp` 파일에는 대응하는 `.h`를 `#include`만 해둔다
-- [ ] 나머지 `.h` 파일에는 include guard (`#pragma once` 또는 `#ifndef`)만 넣는다
+- [x] `practice/mini-kvstore/` 아래에 `include/`, `src/` 디렉토리 생성
+- [x] 빈 파일 생성: `src/main.cpp`, `src/store.cpp`, `src/command.cpp`, `src/exporter.cpp`
+- [x] 빈 헤더 생성: `include/store.h`, `include/command.h`, `include/exporter.h`
+- [x] `src/main.cpp`에 "hello"를 출력하고 0을 반환하는 최소한의 코드 작성
+- [x] 나머지 `.cpp` 파일에는 대응하는 `.h`를 `#include`만 해둔다
+- [x] 나머지 `.h` 파일에는 include guard (`#pragma once` 또는 `#ifndef`)만 넣는다
 
 **검증**: 파일이 전부 있는지 `ls`나 `tree`로 확인.
 
@@ -96,7 +96,7 @@
 - [x] `save()` 구현: `std::ofstream`으로 `path_` 파일 열기
 - [x] `data_`를 순회하면서 `key=value` 형태로 한 줄씩 쓰기
 - [x] `set()`과 `remove()` 끝에 `save()` 호출 추가
-- [ ] 테스트: 프로그램 실행 후 `cat store.dat`로 파일 내용 확인
+- [x] 테스트: 프로그램 실행 후 `cat store.dat`로 파일 내용 확인
 
 **검증**: `./build/kvstore` 실행 후 `store.dat` 파일에 `key=value` 행이 있다.
 
@@ -108,12 +108,12 @@
 
 **목표**: `load()`를 구현해서 프로그램 시작 시 기존 데이터를 복원한다.
 
-- [ ] `load()` 구현: `std::ifstream`으로 `path_` 파일 열기
-- [ ] 파일이 없으면 (열기 실패) 그냥 return — 첫 실행 시 정상
-- [ ] `std::getline`으로 한 줄씩 읽기
-- [ ] 각 줄에서 `=`의 위치를 `find()`로 찾기
-- [ ] `substr()`로 key와 value 분리해서 `data_`에 저장
-- [ ] 테스트: 프로그램 실행 → set → 프로그램 종료 → 다시 실행 → get으로 데이터 확인
+- [x] `load()` 구현: `std::ifstream`으로 `path_` 파일 열기
+- [x] 파일이 없으면 (열기 실패) 그냥 return — 첫 실행 시 정상
+- [x] `std::getline`으로 한 줄씩 읽기
+- [x] 각 줄에서 `=`의 위치를 `find()`로 찾기
+- [x] `substr()`로 key와 value 분리해서 `data_`에 저장
+- [x] 테스트: 프로그램 실행 → set → 프로그램 종료 → 다시 실행 → get으로 데이터 확인
 
 **검증**: 프로그램 두 번 실행 — 두 번째에서 첫 번째 데이터가 살아 있다.
 

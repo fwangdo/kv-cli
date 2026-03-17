@@ -29,7 +29,7 @@ bool KVStore::remove(const std::string &key) {
   auto res = data_.erase(key);
   bool ret = false; 
   if (res == 1) {
-    bool ret = true;
+    ret = true;
   }
   KVStore::save(); 
   return ret;
@@ -53,7 +53,21 @@ void KVStore::save() {
 
 // private.
 void KVStore::load() {
+  auto in = std::ifstream(path_);
+  if (!in) return;
 
+  std::string line;
+  while (std::getline(in, line)) {
+    std::string::size_type idx = line.find("=");
+    // npos is the value which is returned when find method does not find the element. 
+    if (idx == std::string::npos) {
+      continue;
+    }
+    
+    std::string left = line.substr(0, idx); 
+    std::string right = line.substr(idx + 1); 
+    data_[left] = right; 
+  }
 }
 
 }
