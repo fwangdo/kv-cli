@@ -351,7 +351,26 @@
 
 ---
 
-## 전체: ~8시간 (17단계, 마지막 4단계는 짧은 확장 연습)
+## 18단계: CMakeLists.txt 한 번 더 다듬기 (25분)
+
+**목표**: 빌드는 이미 되더라도, 타깃 분리와 include 전파를 더 정확하게 이해하도록 CMakeLists를 개선한다.
+
+- [ ] 실행 파일과 라이브러리 타깃을 다시 분리해 본다
+  - `main.cpp`만 `add_executable(kv_cli ...)`
+  - 나머지 `store.cpp`, `command.cpp`, `exporter.cpp`는 `add_library(kv_core ...)`
+- [ ] `target_link_libraries(kv_cli PRIVATE kv_core)`로 연결한다
+- [ ] `target_include_directories(kv_core PUBLIC include)`로 헤더 경로를 전파한다
+- [ ] 생각해 보기: 왜 `kv_cli`에 include 디렉토리를 직접 주지 않아도 `main.cpp`가 헤더를 찾을 수 있는가?
+- [ ] `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)`을 켜고, 왜 IDE/clangd에 도움이 되는지 확인한다
+- [ ] 가능하면 `target_compile_features(kv_core PUBLIC cxx_std_17)`도 써 보고, 전역 `CMAKE_CXX_STANDARD`와 차이를 생각해 본다
+
+**검증**: `cmake -B build -S .`와 `cmake --build build`가 여전히 성공하고, `main.cpp`에서 `#include "store.hpp"`가 그대로 동작한다.
+
+**배우는 것**: 타깃 기반 CMake, `PUBLIC` include 전파, `target_link_libraries()`의 의미, IDE가 CMake 정보를 어떻게 활용하는지.
+
+---
+
+## 전체: ~8.5시간 (18단계, 마지막 5단계는 짧은 확장 연습)
 
 이틀에 나눠서 해도 좋다.
 
@@ -374,3 +393,4 @@
 | 15 | `constexpr` 상수 정리 | 컴파일 타임 상수, 매직 값 제거 |
 | 16 | RAII + move semantics | `unique_ptr`, 소유권 이동, 자동 정리 |
 | 17 | `vector` + 다형성 | object slicing 회피, 컨테이너 + 가상 함수 |
+| 18 | CMakeLists 다듬기 | 타깃 분리, include 전파, CMake 실전 감각 |

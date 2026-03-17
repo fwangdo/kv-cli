@@ -1,4 +1,5 @@
 #include <iostream> 
+#include <memory>
 #include <optional>
 #include "store.hpp"
 #include "command.hpp" 
@@ -46,6 +47,19 @@ void CountCommand::execute(KVStore &store) {
 
 void ExportCommand::execute(KVStore &store) {
   std::cout << "TODO" << std::endl; 
+}
+
+std::unique_ptr<Command> parseCommand(int argc, char **argv) {
+  if (argc < 2) {
+    return nullptr; 
+  }
+
+  if (argv[1] == "set") {
+    if (argc != 4) {
+      return nullptr; 
+    }
+    return std::make_unique<SetCommand>(argv[2], argv[3]); 
+  }
 }
 
 }
