@@ -92,10 +92,10 @@
 
 **목표**: `save()`를 구현해서 데이터를 `store.dat`에 쓴다.
 
-- [ ] `store.cpp` 상단에 `#include <fstream>` 추가
-- [ ] `save()` 구현: `std::ofstream`으로 `path_` 파일 열기
-- [ ] `data_`를 순회하면서 `key=value` 형태로 한 줄씩 쓰기
-- [ ] `set()`과 `remove()` 끝에 `save()` 호출 추가
+- [x] `store.cpp` 상단에 `#include <fstream>` 추가
+- [x] `save()` 구현: `std::ofstream`으로 `path_` 파일 열기
+- [x] `data_`를 순회하면서 `key=value` 형태로 한 줄씩 쓰기
+- [x] `set()`과 `remove()` 끝에 `save()` 호출 추가
 - [ ] 테스트: 프로그램 실행 후 `cat store.dat`로 파일 내용 확인
 
 **검증**: `./build/kvstore` 실행 후 `store.dat` 파일에 `key=value` 행이 있다.
