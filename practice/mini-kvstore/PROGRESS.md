@@ -27,15 +27,15 @@
 
 **목표**: CMake를 처음부터 직접 쓰고 빌드에 성공한다.
 
-- [ ] `CMakeLists.txt` 파일 생성
-- [ ] `cmake_minimum_required`로 최소 버전 지정 (3.20)
-- [ ] `project()`로 프로젝트 이름과 언어(CXX) 지정
-- [ ] `set(CMAKE_CXX_STANDARD 17)`, `set(CMAKE_CXX_STANDARD_REQUIRED ON)` 추가
-- [ ] `add_executable()`로 실행 파일 이름과 소스 파일 4개 나열
-- [ ] `target_include_directories()`로 `include` 폴더 지정
-- [ ] `cmake -B build -S .` 실행 — 에러 나면 고친다
-- [ ] `cmake --build build` 실행 — 컴파일 에러 나면 고친다
-- [ ] `./build/kvstore` 실행해서 "hello" 출력 확인
+- [x] `CMakeLists.txt` 파일 생성
+- [x] `cmake_minimum_required`로 최소 버전 지정 (3.20)
+- [x] `project()`로 프로젝트 이름과 언어(CXX) 지정
+- [x] `set(CMAKE_CXX_STANDARD 17)`, `set(CMAKE_CXX_STANDARD_REQUIRED ON)` 추가
+- [x] `add_executable()`로 실행 파일 이름과 소스 파일 4개 나열
+- [x] `target_include_directories()`로 `include` 폴더 지정
+- [x] `cmake -B build -S .` 실행 — 에러 나면 고친다
+- [x] `cmake --build build` 실행 — 컴파일 에러 나면 고친다
+- [x] `./build/kvstore` 실행해서 "hello" 출력 확인
 
 **검증**: `./build/kvstore` → "hello" 출력.
 
