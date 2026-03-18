@@ -1,6 +1,7 @@
 #include <iostream> 
 #include <memory>
 #include <optional>
+#include "exporter.hpp"
 #include "store.hpp"
 #include "command.hpp" 
 
@@ -46,7 +47,14 @@ void CountCommand::execute(KVStore &store) {
 }
 
 void ExportCommand::execute(KVStore &store) {
-  std::cout << "TODO" << std::endl; 
+  // std::cout << "TODO" << std::endl; 
+  auto exporter = createExporter(format_);
+  if (!exporter) {
+    std::cout << "ERROR, the fomat is not valid" << std::endl; 
+    return;
+  }
+
+  exporter->dump(store.list(), std::cout); 
 }
 
 std::unique_ptr<Command> parseCommand(int argc, char **argv) {
@@ -94,7 +102,7 @@ std::unique_ptr<Command> parseCommand(int argc, char **argv) {
     if (argc != 3) {
       return nullptr; 
     }
-    return std::make_unique<ExportCommand>(); 
+    return std::make_unique<ExportCommand>(argv[2]); 
   }
 
   return nullptr; 

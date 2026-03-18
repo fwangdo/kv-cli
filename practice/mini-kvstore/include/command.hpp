@@ -53,7 +53,10 @@ public:
 
 class ExportCommand : public Command {
 public:
+  explicit ExportCommand(const std::string &format): format_(format) {}; 
   void execute(KVStore &store) override; 
+private: 
+  std::string format_; 
 };
 
 // factory

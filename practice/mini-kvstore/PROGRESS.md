@@ -263,18 +263,75 @@
 
 **목표**: JSON 출력 구현, 팩토리 함수로 포맷 선택, `ExportCommand` 연결.
 
-- [ ] `JsonExporter` 선언 + 구현 — `{"key1":"val1","key2":"val2"}` 형태
-  - 힌트: 첫 항목이 아니면 앞에 `,`를 붙인다
-- [ ] `createExporter(const std::string &format)` 팩토리 함수 작성
-  - "json" → `make_unique<JsonExporter>()`
-  - "csv" → `make_unique<CsvExporter>()`
-  - 그 외 → `nullptr`
-- [ ] `ExportCommand::execute`에서 `createExporter` 사용하도록 수정
-- [ ] 테스트: `./build/kvstore export json`, `./build/kvstore export csv`
+- [x] 먼저 목표를 이해한다
+  - 11단계에서 CSV 하나를 직접 호출해 봤다면, 이제는 "포맷 이름 문자열"로 적절한 Exporter를 고르는 단계다
+  - 즉 `"json"`이면 `JsonExporter`, `"csv"`면 `CsvExporter`를 만들어 주는 팩토리 함수가 필요하다
+  - 마지막에는 `ExportCommand`가 그 팩토리를 사용하게 만든다
+- [x] `exporter.h`에 `JsonExporter` 선언 추가
+  ```cpp
+  class JsonExporter : public Exporter {
+  public:
+      void dump(
+          const std::map<std::string, std::string>& data,
+          std::ostream& out) override;
+  };
+  ```
+- [x] 같은 헤더에 팩토리 함수 선언 추가
+  ```cpp
+  std::unique_ptr<Exporter> createExporter(const std::string& format);
+  ```
+- [ ] `exporter.cpp`에서 `JsonExporter::dump()` 구현
+  - 출력 시작은 `{`
+  - 각 항목은 `"key":"value"` 형태
+  - 첫 번째 항목이 아니면 앞에 `,`를 붙인다
+  - 마지막에 `}`를 출력한다
+  ```cpp
+  void JsonExporter::dump(
+      const std::map<std::string, std::string>& data,
+      std::ostream& out) {
+      out << '{';
+      bool first = true;
+      for (const auto& [key, value] : data) {
+          if (!first) {
+              out << ',';
+          }
+          out << '"' << key << "\":\"" << value << '"';
+          first = false;
+      }
+      out << '}';
+  }
+  ```
+- [x] `exporter.cpp`에 `createExporter()` 구현
+  ```cpp
+  std::unique_ptr<Exporter> createExporter(const std::string& format) {
+      if (format == "json") return std::make_unique<JsonExporter>();
+      if (format == "csv") return std::make_unique<CsvExporter>();
+      return nullptr;
+  }
+  ```
+- [x] `ExportCommand`가 포맷 문자열을 저장하도록 `command.h` / `command.cpp` 수정
+  - 생성자에서 `format`을 받는다
+  - `execute()` 안에서 `auto exporter = createExporter(format_);`
+  - `nullptr`면 에러 메시지 출력
+  - 아니면 `exporter->dump(store.list(), std::cout);`
+- [x] `parseCommand()`에서 `export <format>`이 들어오면 `ExportCommand(argv[2])`를 만들도록 수정
+- [x] 테스트는 두 단계로 나눠서 한다
+  - 먼저 `main.cpp`에서 임시로 `createExporter("json")`, `createExporter("csv")`를 직접 호출해 본다
+  - 그 다음 `./build/kvstore export json`, `./build/kvstore export csv`로 실제 CLI 흐름을 확인한다
+- [x] 기대 결과를 눈으로 확인한다
+  ```text
+  {"name":"alice","city":"seoul"}
+  ```
+  ```text
+  city,seoul
+  name,alice
+  ```
+
+**왜 이 단계가 필요한가**: 새로운 출력 포맷을 추가할 때 `if (format == ...)` 로직을 여러 군데에 흩뿌리지 않고, `Exporter` 구현과 팩토리 함수만 건드리게 만들기 위해서다.
 
 **검증**: 두 포맷 모두 정상 출력.
 
-**배우는 것**: Strategy 패턴 (같은 인터페이스, 다른 알고리즘), Factory 패턴 두 번째 연습, JSON 문자열 조립.
+**배우는 것**: Strategy 패턴 (같은 인터페이스, 다른 알고리즘), Factory 패턴 두 번째 연습, JSON 문자열 조립, "문자열 -> 객체 생성 -> 공통 인터페이스 실행" 흐름.
 
 ---
 
@@ -282,21 +339,63 @@
 
 **목표**: 모든 에러 케이스를 점검하고, 테스트 스크립트로 전체 검증.
 
-- [ ] 하나씩 직접 실행해서 확인:
-  - `./build/kvstore` → `Error: usage: kvstore <command> [args...]`
-  - `./build/kvstore foo` → `Error: unknown command: foo`
-  - `./build/kvstore get missing` → `Error: key not found: missing`
-  - `./build/kvstore delete missing` → `Error: key not found: missing`
-  - `./build/kvstore export xml` → `Error: unknown format: xml`
-- [ ] 안 되는 게 있으면 고친다
-- [ ] `test.sh` 작성 (SPEC 참고하되, 직접 타이핑)
+- [ ] 먼저 "어디서 어떤 에러를 처리할지" 정리한다
+  - `parseCommand()`는 사용법 오류와 알 수 없는 커맨드를 처리
+  - `GetCommand`, `DeleteCommand`는 없는 키 에러를 처리
+  - `ExportCommand`는 알 수 없는 포맷 에러를 처리
+- [ ] `parseCommand()`에서 인자 부족 시 사용법 메시지 출력
+  ```cpp
+  Error: usage: kvstore <command> [args...]
+  ```
+- [ ] `parseCommand()`에서 모르는 커맨드면 이런 형식으로 출력
+  ```cpp
+  Error: unknown command: foo
+  ```
+- [ ] `GetCommand::execute()`를 spec 형식에 맞게 정리
+  ```cpp
+  Error: key not found: missing
+  ```
+- [ ] `DeleteCommand::execute()`도 같은 형식으로 정리
+- [ ] `ExportCommand::execute()`에서 `createExporter()` 결과가 `nullptr`면 이런 형식으로 출력
+  ```cpp
+  Error: unknown format: xml
+  ```
+- [ ] 직접 실행 테스트를 순서대로 해 본다
+  - `./build/kvstore`
+  - `./build/kvstore foo`
+  - `./build/kvstore get missing`
+  - `./build/kvstore delete missing`
+  - `./build/kvstore export xml`
+- [ ] 각 출력이 spec과 한 글자까지 맞는지 확인한다
+  - `ERROR` vs `Error`
+  - `:` 위치
+  - 공백 위치
+  - 개행 포함 여부
+- [ ] `test.sh`를 작성한다
+  - `#!/bin/bash`
+  - `set -e`
+  - `BIN=./build/kvstore`
+  - 시작 전에 `rm -f store.dat`
+- [ ] `test.sh`에 정상 케이스를 먼저 적는다
+  - `set`, `get`, `list`, `count`, `export json`, `export csv`
+- [ ] 그 다음 에러 케이스를 적는다
+  - 잘못된 커맨드
+  - 없는 키 조회/삭제
+  - 알 수 없는 export 포맷
+- [ ] 처음에는 단순히 명령을 순서대로 실행하는 스크립트로 시작한다
+- [ ] 여유가 있으면 출력 비교까지 추가해 본다
+  - 예: `actual=$($BIN get name)`
+  - 예: `[ "$actual" = "alice" ]`
 - [ ] `chmod +x test.sh && ./test.sh` 실행
-- [ ] 전부 통과할 때까지 반복
-- [ ] 정리: 디버그 출력 제거, 사용하지 않는 include 제거
+- [ ] 안 되는 항목을 고치고 다시 실행한다
+- [ ] 마지막으로 정리한다
+  - 디버그 출력 제거
+  - 사용하지 않는 include 제거
+  - 임시 테스트 코드 제거
 
 **검증**: `./test.sh` → "ALL TESTS PASSED"
 
-**배우는 것**: 방어적 프로그래밍, 에러 메시지 일관성, 셸 스크립트 기초 (`set -e`, 변수, `$?`).
+**배우는 것**: 방어적 프로그래밍, 에러 메시지 일관성, 실패 경로 테스트, 셸 스크립트 기초 (`set -e`, 변수, 명령 치환).
 
 ---
 
