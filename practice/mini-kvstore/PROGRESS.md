@@ -211,9 +211,9 @@
   - 아직 `export` CLI를 완성하는 단계가 아니다
   - 지금은 "출력 형식을 담당하는 객체"를 따로 만들고, CSV 한 가지만 먼저 구현하는 단계다
   - 즉 `KVStore`는 데이터를 보관만 하고, "어떻게 출력할지"는 `Exporter`가 맡는다
-- [ ] `exporter.h`에 필요한 헤더 추가
+- [x] `exporter.h`에 필요한 헤더 추가
   - `<map>`, `<memory>`, `<ostream>`, `<string>`
-- [ ] `exporter.h`에 추상 클래스 `Exporter` 정의:
+- [x] `exporter.h`에 추상 클래스 `Exporter` 정의:
   ```cpp
   class Exporter {
   public:
@@ -223,7 +223,7 @@
           std::ostream& out) = 0;
   };
   ```
-- [ ] 같은 헤더에 `CsvExporter : public Exporter` 선언
+- [x] 같은 헤더에 `CsvExporter : public Exporter` 선언
   ```cpp
   class CsvExporter : public Exporter {
   public:
@@ -232,10 +232,10 @@
           std::ostream& out) override;
   };
   ```
-- [ ] `exporter.cpp`에서 `CsvExporter::dump()` 구현
+- [x] `exporter.cpp`에서 `CsvExporter::dump()` 구현
   - `for (const auto& [key, value] : data)`로 순회
   - 각 줄을 `out << key << ',' << value << '\n';`로 출력
-- [ ] `main.cpp`에서 임시 테스트 코드 추가
+- [x] `main.cpp`에서 임시 테스트 코드 추가
   ```cpp
   kv::KVStore store("store.dat");
   store.set("name", "alice");
@@ -244,12 +244,12 @@
   kv::CsvExporter csv;
   csv.dump(store.list(), std::cout);
   ```
-- [ ] 출력 결과가 정말 CSV처럼 나오는지 눈으로 확인
+- [x] 출력 결과가 정말 CSV처럼 나오는지 눈으로 확인
   ```text
   city,seoul
   name,alice
   ```
-- [ ] 빌드 + 실행
+- [x] 빌드 + 실행
 
 **왜 이 단계가 필요한가**: 12단계에서 JSON을 추가할 때 `KVStore`나 `main`을 크게 건드리지 않고, `Exporter` 구현만 하나 더 만들기 위해서다.
 
