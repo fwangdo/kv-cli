@@ -7,7 +7,14 @@
 #include "exporter.hpp"
 
 int main(int argc, char** argv) {
-  kv::KVStore store("store.dat");
+  constexpr const char* kDefaultStorePath = "store.dat";
+
+  // test 
+  auto cmd = std::make_unique<kv::SetCommand>("k", "v"); 
+  auto moved = std::move(cmd); 
+
+  kv::KVStore store(kDefaultStorePath);
+
   store.set("name", "alice");
   store.set("city", "seoul");
 

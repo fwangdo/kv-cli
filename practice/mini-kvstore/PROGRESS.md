@@ -335,7 +335,7 @@
 
 ---
 
-## 13단계: 에러 처리 마무리 + test.sh (30분)
+## 13단계: 에러 처리 마무리 + test.sh (30분) -> I won't do it.  
 
 **목표**: 모든 에러 케이스를 점검하고, 테스트 스크립트로 전체 검증.
 
@@ -403,7 +403,7 @@
 
 **목표**: 이 프로젝트 흐름을 깨지 않으면서, 중복 출력 로직을 템플릿 함수로 빼 보는 연습을 한다.
 
-- [ ] `main.cpp` 또는 별도 헤더에 템플릿 함수 추가
+- [x] `main.cpp` 또는 별도 헤더에 템플릿 함수 추가
   ```cpp
   template <typename MapLike>
   void printEntries(const MapLike& data) {
@@ -412,9 +412,9 @@
       }
   }
   ```
-- [ ] `store.list()`를 직접 순회하던 코드를 `printEntries(store.list())`로 바꿔 본다
-- [ ] 빌드해서 템플릿 함수가 실제로 인스턴스화되는지 확인한다
-- [ ] 생각해 보기: 왜 템플릿 구현은 보통 `.cpp`보다 헤더에 두는가?
+- [x] `store.list()`를 직접 순회하던 코드를 `printEntries(store.list())`로 바꿔 본다
+- [x] 빌드해서 템플릿 함수가 실제로 인스턴스화되는지 확인한다
+- [x] 생각해 보기: 왜 템플릿 구현은 보통 `.cpp`보다 헤더에 두는가?
 
 **검증**: `printEntries(store.list())` 호출 시 기존과 동일하게 `key = value`가 출력된다.
 
@@ -428,13 +428,13 @@
 
 **목표**: 문자열 리터럴과 매직 값을 코드 여기저기에 흩뿌리지 않고, 컴파일 타임 상수로 정리하는 습관을 익힌다.
 
-- [ ] `main.cpp` 또는 적절한 헤더에 기본 저장 파일명을 `constexpr`로 선언
+- [x] `main.cpp` 또는 적절한 헤더에 기본 저장 파일명을 `constexpr`로 선언
   ```cpp
   constexpr const char* kDefaultStorePath = "store.dat";
   ```
-- [ ] `KVStore store("store.dat");`처럼 직접 쓰던 문자열을 `kDefaultStorePath`로 바꿔 본다
-- [ ] 테스트용 파일명도 `constexpr` 상수로 빼 본다
-- [ ] 생각해 보기: 왜 이런 값은 `std::string` 변수보다 `constexpr` 상수가 더 어울리는가?
+- [x] `KVStore store("store.dat");`처럼 직접 쓰던 문자열을 `kDefaultStorePath`로 바꿔 본다
+- [x] 테스트용 파일명도 `constexpr` 상수로 빼 본다
+- [x] 생각해 보기: 왜 이런 값은 `std::string` 변수보다 `constexpr` 상수가 더 어울리는가?
 
 **검증**: 빌드와 실행 결과는 그대로이고, 파일 경로 문자열이 한 곳에서 관리된다.
 
